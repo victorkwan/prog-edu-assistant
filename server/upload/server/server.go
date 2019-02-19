@@ -29,6 +29,7 @@ func New(opts Options) *Server {
 	r.Handle("/", handleError(s.uploadForm())).Methods("GET")
 	r.Handle("/uploads/", http.StripPrefix("/uploads",
 		http.FileServer(http.Dir(s.Options.UploadDir))))
+	r.HandleFunc("/upload", s.handleOptions()).Methods("OPTIONS")
 	return s
 }
 
@@ -36,10 +37,15 @@ func (s *Server) ListenAndServe(addr string) error {
 	return http.ListenAndServe(addr, s.Router)
 }
 
+func (s *Server) ListenAndServeTLS(addr, certFile, keyFile string) error {
+	return http.ListenAndServeTLS(addr, certFile, keyFile, s.Router)
+}
+
 func handleError(fn func(http.ResponseWriter, *http.Request) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		err := fn(w, req)
 		if err != nil {
+			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
@@ -47,16 +53,28 @@ func handleError(fn func(http.ResponseWriter, *http.Request) error) http.Handler
 
 type httpHandleFuncWithError func(http.ResponseWriter, *http.Request) error
 
+func (s *Server) handleOptions() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		fmt.Println("OPTIONS ", req.URL.Path)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+	}
+}
+
 const maxUploadSize = 1048576
 
 func (s *Server) handleUpload() httpHandleFuncWithError {
 	return func(w http.ResponseWriter, req *http.Request) error {
+		fmt.Println("POST ", req.URL.Path)
 		req.Body = http.MaxBytesReader(w, req.Body, maxUploadSize)
 		err := req.ParseMultipartForm(maxUploadSize)
 		if err != nil {
 			return fmt.Errorf("error parsing upload form: %s", err)
 		}
 		f, _, err := req.FormFile("notebook")
+		if err != nil {
+			return fmt.Errorf("no notebook file in the form: %s\nRequest %s", err, req)
+		}
 		defer f.Close()
 		b, err := ioutil.ReadAll(f)
 		if err != nil {
@@ -73,6 +91,8 @@ func (s *Server) handleUpload() httpHandleFuncWithError {
 			return err
 		}
 		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		fmt.Fprintf(w, "OK\n")
 		return nil
 	}
@@ -85,6 +105,7 @@ func (s *Server) scheduleCheck(filename string) error {
 
 func (s *Server) uploadForm() httpHandleFuncWithError {
 	return func(w http.ResponseWriter, req *http.Request) error {
+		fmt.Println("GET ", req.URL.Path)
 		//return uploadTmpl.Execute(w, nil)
 		_, err := w.Write([]byte(uploadHTML))
 		return err
