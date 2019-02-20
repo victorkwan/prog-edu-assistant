@@ -31,9 +31,9 @@ define([
     update_config();
     Jupyter.toolbar.add_buttons_group([
       Jupyter.keyboard_manager.actions.register({
-	"help": "Upload notebook",
-	"icon": "fa-check-square",
-	"handler": show_upload_dialog
+  "help": "Upload notebook",
+  "icon": "fa-check-square",
+  "handler": show_upload_dialog
       }, "upload-notebook", "upload_it")
     ]);
   }
@@ -43,7 +43,7 @@ define([
     var config = Jupyter.notebook.config;
     for (var key in configuration) {
       if (config.data.hasOwnProperty(key)) {
-	configuration[key] = config.data[key];
+  configuration[key] = config.data[key];
       }
     }
   }
@@ -63,18 +63,18 @@ define([
       .addClass("form-group")
       .appendTo($controls)
       .append(
-	$("<div>")
-	  .addClass("checkbox")
-	  .append(
-	    $("<label>")
-	      .text("Finalize submission")
-	      .prepend(
-		$("<input>")
-		  .attr("type", "checkbox")
-		  .attr("id", "upload_it_final")
-		  .prop("checked", false)
-	      )
-	  )
+  $("<div>")
+    .addClass("checkbox")
+    .append(
+      $("<label>")
+        .text("Finalize submission")
+        .prepend(
+    $("<input>")
+      .attr("type", "checkbox")
+      .attr("id", "upload_it_final")
+      .prop("checked", false)
+        )
+    )
       );
     return $upload_dialog;
   }
@@ -87,32 +87,36 @@ define([
       keyboard_manager: Jupyter.notebook.keyboard_manager,
       body: build_upload_dialog(),
       buttons: {
-	"Upload": {
-	  "class": "btn-primary",
-	  "click": function () {
-	    var notebook = Jupyter.notebook;
-	    var url = configuration.upload_it_server_url;
-	    var formdata = new FormData();
-	    var content = JSON.stringify(Jupyter.notebook.toJSON(), null, 2);
-	    var blob = new Blob([content], { type: "application/x-ipynb+json"});
-	    formdata.set("notebook", blob);
-	    window.console.log("Uploading ", notebook.notebook_path, " to ", url, formdata);
-	    $.ajax({
-	      url: url,
-	      data: formdata,
-	      contentType: false,
-	      processData: false,
-	      method: "POST",
-	      success: function(data, status, jqXHR) {
-		window.console.log("Upload OK", data);
-	      },
-	      error: function(jqXHR, status, err) {
-		window.console.log("Upload failed", status, err);
-	      }
-	    });
-	  }
-	},
-	"done": {}
+  "Upload": {
+    "class": "btn-primary",
+    "click": function () {
+      var notebook = Jupyter.notebook;
+      var url = configuration.upload_it_server_url;
+      var formdata = new FormData();
+      var content = JSON.stringify(Jupyter.notebook.toJSON(), null, 2);
+      var blob = new Blob([content], { type: "application/x-ipynb+json"});
+      formdata.set("notebook", blob);
+      window.console.log("Uploading ", notebook.notebook_path, " to ", url, formdata);
+      $.ajax({
+        url: url,
+        data: formdata,
+        contentType: false,
+        processData: false,
+        method: "POST",
+        success: function(data, status, jqXHR) {
+          // Open the report in a new tab.
+          var u = new URL(url);
+          var reportURL = u.protocol + "//" + u.host + data;
+          window.open(reportURL, '_blank');
+          window.console.log("Upload OK", reportURL);
+        },
+        error: function(jqXHR, status, err) {
+          window.console.log("Upload failed", status, err);
+        }
+      });
+    }
+  },
+  "done": {}
       }
     });
     modal.attr('id', 'upload_it_modal');

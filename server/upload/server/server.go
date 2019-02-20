@@ -3,7 +3,9 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/google/uuid"
@@ -27,7 +29,7 @@ func New(opts Options) *Server {
 	}
 	r.Handle("/upload", handleError(s.handleUpload())).Methods("POST")
 	r.Handle("/", handleError(s.uploadForm())).Methods("GET")
-	r.Handle("/uploads/", http.StripPrefix("/uploads",
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads",
 		http.FileServer(http.Dir(s.Options.UploadDir))))
 	r.HandleFunc("/upload", s.handleOptions()).Methods("OPTIONS")
 	return s
@@ -82,25 +84,39 @@ func (s *Server) handleUpload() httpHandleFuncWithError {
 		}
 		// TODO(salikh): Add user identifier to the file name.
 		filename := filepath.Join(s.UploadDir, uuid.New().String()+".ipynb")
-		err = ioutil.WriteFile(filename, b, 0700)
+		err = ioutil.WriteFile(filename, b, 0600)
 		if err != nil {
 			return fmt.Errorf("error writing uploaded file: %s", err)
 		}
-		err = s.scheduleCheck(filename)
+		rfilename, err := s.scheduleCheck(filename)
 		if err != nil {
 			return err
 		}
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		fmt.Fprintf(w, "OK\n")
+		fmt.Fprintf(w, "/uploads/"+rfilename)
 		return nil
 	}
 }
 
-func (s *Server) scheduleCheck(filename string) error {
-	fmt.Printf("TODO(salikh): Run checker for %q\n", filename)
-	return nil
+// scheduleCheck runs a checker for the notebook specified as a filename,
+// and returns a filename of the report that was generated.
+func (s *Server) scheduleCheck(filename string) (string, error) {
+	cmd := exec.Command("python", "../../exercises/helloworld-check.py", "--input_file", filename)
+	log.Println(cmd)
+	// TODO(salikh): Constrain memory.
+	// TODO(salikh): Kill after timeout.
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("error runing the checker: %s", err)
+	}
+	rfilename := filename + ".txt"
+	err = ioutil.WriteFile(rfilename, out, 0600)
+	if err != nil {
+		return "", fmt.Errorf("error writing the report %q: %s", rfilename, err)
+	}
+	return filepath.Base(rfilename), nil
 }
 
 func (s *Server) uploadForm() httpHandleFuncWithError {
