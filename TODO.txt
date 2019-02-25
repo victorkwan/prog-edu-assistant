@@ -1,0 +1,31 @@
+> Example assignment notebook
+  > Instruction on how to create assignments
+> OAuth authentication
+  > Dummy OAuth server
+  > Client-side auth
+  > XSRFToken
+> Interface to the autograder
+  * Look at the interface of okpy
+    - It is pretty complex, includes interactions between
+      courses/backups/files/etc.
+  > Describe how to identify solution cell
+    (a) A specific named function (/def Name/ in code cells)
+    (b) Find the section header(/^# Title/ in markdown cells, then code cell by number)
+    (c) Generalize and describe a language for cell extraction
+  > Describe how to identify the right assignment
+    (a) Ad-hoc: look at the name of the uploaded notebook. Or the title of the first markdown cell.
+    (b) Structured: take a parameter, just like okpy does
+    (c) Proxy: take ad-hoc request, convert to a structured one
+  > Describe the output format
+    (json? lint-like? should include solution source code? )
+    - Perhaps JSON is the most future-proof.
+> Output formatter
+  - Input: JSON from the autograder
+  - Output: Formatted HTML to present to student or to faculty.
+  > Syntax highlighting
+  > Hover error/warnings
+  > Other messages
+    > Markdown formatter
+> Upload-it
+  > Configure upload server on command line (can be part of the instructions)
+  > Publish the extension as pip module
