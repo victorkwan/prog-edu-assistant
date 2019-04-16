@@ -87,6 +87,12 @@ define([
                 window.console.log("Upload OK", data);
               },
               error: function(jqXHR, status, err) {
+                if (err == "Unauthorized") {
+                  window.console.log("Unauthorized, attempting login");
+                  let loginURL = new URL(configuration.upload_it_server_url);
+                  loginURL.pathname = '/login';
+                  window.open(loginURL, '_blank');
+                }
                 window.console.log("Upload failed", status, err);
               }
             });

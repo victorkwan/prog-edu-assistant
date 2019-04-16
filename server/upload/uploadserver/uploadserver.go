@@ -207,12 +207,6 @@ func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
 const maxUploadSize = 1048576
 
 func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.UseOpenID {
-		err := s.authenticate(w, req)
-		if err != nil {
-			return err
-		}
-	}
 	if s.opts.DisableCORS {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -220,6 +214,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	if req.Method == "OPTIONS" {
 		log.Infof("OPTIONS %s", req.URL.Path)
 		return nil
+	}
+	if s.opts.UseOpenID {
+		err := s.authenticate(w, req)
+		if err != nil {
+			return err
+		}
 	}
 	if req.Method != "POST" {
 		return fmt.Errorf("Unsupported method %s on %s", req.Method, req.URL.Path)
