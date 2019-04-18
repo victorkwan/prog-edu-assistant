@@ -23,7 +23,8 @@ type Cmd struct {
 
 var commands = map[string]*Cmd{
 	"post":    &Cmd{"Post a message to a queue.", postCommand},
-	"receive": &Cmd{"Receive a message from a queue.", receiveCommand},
+	"receive": &Cmd{"Receive a single message from a queue.", receiveCommand},
+	"listen": &Cmd{"Receive messages from a queue forever.", listenCommand},
 }
 
 func main() {
@@ -76,6 +77,21 @@ func receiveCommand() error {
 		return err
 	}
 	b := <-ch
-	fmt.Printf("Recieved: %q\n", string(b))
+	fmt.Printf("Received: %q\n", string(b))
+	return nil
+}
+
+func listenCommand() error {
+	err := initQueue()
+	if err != nil {
+		return err
+	}
+	ch, err := channel.Receive(*queueName)
+	if err != nil {
+		return err
+	}
+	for b := range ch {
+		fmt.Printf("Received: %q\n", string(b))
+	}
 	return nil
 }
