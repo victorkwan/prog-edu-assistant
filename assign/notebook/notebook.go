@@ -1,5 +1,5 @@
-// Package notebook provides utility functions for working with Jupyter/IPython notebooks,
-// i.e. JSON files following some convetions.
+// Package notebook provides utility functions for working with Jupyter/IPython
+// notebooks, i.e. JSON files following some conventions.
 package notebook
 
 import (
@@ -137,4 +137,23 @@ func Parse(filename string) (*Notebook, error) {
 		}
 	}
 	return ret, nil
+}
+
+func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, error) {
+	var out []*Cell
+	for _, cell := range n.Cells {
+		ncell, err := mapFunc(cell)
+		if err != nil {
+			return nil, err
+		}
+		if ncell != nil {
+			out = append(out, ncell)
+		}
+	}
+	return &Notebook{
+		NBFormat:      n.NBFormat,
+		NBFormatMinor: n.NBFormatMinor,
+		Metadata:      n.Metadata,
+		Cells:         out,
+	}, nil
 }

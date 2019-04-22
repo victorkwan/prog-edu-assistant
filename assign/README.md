@@ -36,9 +36,9 @@ markers.
 
     x = 2  # SOLUTION
 
-    # SOLUTION BEGIN
+    # BEGIN SOLUTION
     x = 2
-    # SOLUTION END
+    # END SOLUTION
 
 If the solution cell has `# UNITTEST OUTPUT` marker, its output in the master
 notebook is used to create a unit test to check the output of the student
