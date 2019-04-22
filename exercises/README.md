@@ -26,37 +26,64 @@ To start the Jupyter notebook run command
 
 ## Structure of the programming assignment notebooks
 
-Each programming assignment resides in a separate Jupyter notebook, including:
+Each programming assignment resides in a separate master Jupyter notebook. At
+build time, the master notebook is taken as an input and the following outputs
+are generated:
+
+*   Student notebook
+*   Autograder test directory
+
+A student notebook, and by extension, the source master notebook should contain
+the following:
 
 *   Explanation of a new concept, algorithm or library
 *   Examples of use
 *   Explanation of the tasks that the students should complete
-*   An empty cell that the student needs to fill in
-*   Maybe a few cells with tests for the student's solution
+*   An solution cell.
+    *   In the student notebook the solution is replaced with a prompt of the
+        form `... your solution here ...` or similar.
+*   A few cells with tests for the student's solution, typically with built-in
+    `assert` statements. These are used in two ways:
+    *   To test the solution in the master notebook.
+    *   To give students a few tests to check their solution.
 
-Initially all programming assignments are in one global shared namespace, where
-the assignment notebook may have a few translations to different languages,
-denoted by the suffix of the notebook, e.g. "en" for English and "ja" for
-Japanese.
+All programming assignments are in one global shared namespace, where the
+assignment notebook may have a few translations to different languages, denoted
+by the suffix of the notebook, e.g. "en" for English and "ja" for Japanese. The
+requirement for the assignment and exercise IDs is to be file name compatible.
+The assignement name may include a course name to make the name globally unique.
 
-Each assignment notebook should have a `course_info` entry in the notebook
+Each student notebook should have a `assignment_id` entry in the notebook
 metadata section that identifies the specific assignment and the course that the
 assignment belongs to.
 
     "metadata": {
-      "course_info": {
-        "course_name": "cs101",
-        "unit_name": "helloworld"
-      },
+      "assignment_id": "HellowWorld",
       # ...
     },
 
 This is useful for deciding which assignment the uploaded notebook is for and
-for picking the correct autograder script to run.
+for picking the correct autograder script to run. The metadata is provided in
+the master notebook using triple-backtick sections with regexp-friendly markers:
+
+    ```
+    # ASSIGNMENT METADATA
+    assignment_id = "HelloWorld"
+    ```
+
+    ```
+    # EXERCISE METADATA
+    exercise_id = "hello1"
+    ```
 
 ## Structure of autograder scripts
 
 NOTE: This is a proposed format that is subject to discussion and change.
+
+The autograder scripts have two representations: the directory format and the
+notebook format. The notebook format is the authoritative source and is
+contained in the master notebook. The directory format is produced at build time
+and
 
 The python files in the this directory with the basename matching the assignment
 notebooks are autograder scripts.
