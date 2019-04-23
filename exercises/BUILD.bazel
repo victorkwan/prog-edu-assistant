@@ -1,0 +1,14 @@
+# TODO(salikh): Create a custom bazel build rule for declaring master notebooks
+# and deliverables produced from them.
+
+genrule(
+    name = "helloworld-en-student",
+    srcs = [
+        "helloworld-en-master.ipynb",
+    ],
+    outs = ["helloworld-en.ipynb"],
+    cmd = """$(location //assign/cmd:assign) --input="$<" --output="$@" --command=student""",
+    tools = [
+        "//assign/cmd:assign",
+    ],
+)
