@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
+	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 // Notebook represents a parsed Jupyter notebook.
@@ -156,4 +159,100 @@ func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, er
 		Metadata:      n.Metadata,
 		Cells:         out,
 	}, nil
+}
+
+var (
+	assignmentMetadataRegex = regexp.MustCompile("(?m)^# ASSIGNMENT METADATA")
+	exerciseMetadataRegex   = regexp.MustCompile("(?m)^# EXERCISE METADATA")
+	tripleBacktickedRegex   = regexp.MustCompile("(?ms)^```.*^```")
+	solutionBeginRegex      = regexp.MustCompile("(?m)^# BEGIN SOLUTION")
+	solutionEndRegex        = regexp.MustCompile("(?m)^# END SOLUTION")
+	promptBeginRegex        = regexp.MustCompile("(?m)^# BEGIN PROMPT")
+	promptEndRegex          = regexp.MustCompile("(?m)^# END PROMPT")
+	testRegex               = regexp.MustCompile("(?m)^# TEST")
+	unittestBeginRegex      = regexp.MustCompile("(?m)^# BEGIN UNITTEST")
+	unittestEndRegex        = regexp.MustCompile("(?m)^# END UNITTEST")
+	autotestBeginRegex      = regexp.MustCompile("(?m)^# BEGIN AUTOTEST")
+	autotestEndRegex        = regexp.MustCompile("(?m)^# END AUTOTEST")
+)
+
+// ToStudent converts a master notebook into the student notebook.
+func (n *Notebook) ToStudent() (*Notebook, error) {
+	assignmentMetadata := make(map[string]interface{})
+	exerciseMetadata := make(map[string]interface{})
+	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
+		if cell.Type == "markdown" {
+			var outputs []string
+			mm := tripleBacktickedRegex.FindAllStringIndex(cell.Source, -1)
+			replace := false
+			for i, m := range mm {
+				if len(outputs) == 0 {
+					outputs = append(outputs, cell.Source[0:m[0]])
+				}
+				text := cell.Source[m[0]+3 : m[1]-3]
+				if assignmentMetadataRegex.MatchString(text) {
+					fmt.Printf("%q", text)
+					err := yaml.Unmarshal([]byte(text), &assignmentMetadata)
+					if err != nil {
+						return nil, fmt.Errorf("error parsing ASSIGNMENT METADATA: %s", err)
+					}
+					replace = true
+				}
+				if exerciseMetadataRegex.MatchString(text) {
+					exerciseMetadata = make(map[string]interface{})
+					fmt.Printf("%q", text)
+					err := yaml.Unmarshal([]byte(text), &exerciseMetadata)
+					if err != nil {
+						return nil, fmt.Errorf("error parsing EXERCISE METADATA: %s", err)
+					}
+					replace = true
+				}
+				if i < len(mm)-1 {
+					outputs = append(outputs, cell.Source[m[1]:mm[i+1][0]])
+				} else {
+					outputs = append(outputs, cell.Source[m[1]:])
+				}
+			}
+			if replace {
+				cell.Source = strings.Join(outputs, "")
+			}
+		}
+		if cell.Type != "code" {
+			return cell, nil
+		}
+		if mbeg := solutionBeginRegex.FindAllStringIndex(cell.Source, -1); mbeg != nil {
+			mend := solutionEndRegex.FindAllStringIndex(cell.Source, -1)
+			if len(mbeg) != len(mend) {
+				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
+			}
+			var outputs []string
+			for i, m := range mbeg {
+				if i == 0 {
+					outputs = append(outputs, cell.Source[0:m[0]])
+				}
+				// TODO(salikh): Fix indentation and add more heuristics.
+				outputs = append(outputs, "...")
+				if i < len(mbeg)-1 {
+					outputs = append(outputs, cell.Source[mend[i][1]:mbeg[i+1][0]])
+				} else {
+					outputs = append(outputs, cell.Source[mend[i][1]:])
+				}
+			}
+			return &Cell{
+				Type:     "code",
+				Metadata: exerciseMetadata,
+				Source:   strings.Join(outputs, ""),
+			}, nil
+		}
+		// Skip any test cells.
+		if unittestBeginRegex.MatchString(cell.Source) ||
+			autotestBeginRegex.MatchString(cell.Source) {
+			return nil, nil
+		}
+		return cell, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transformed, nil
 }
