@@ -129,7 +129,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	result["assignment_id"] = assignmentID
 	result["submission_id"] = submissionID
 	result["outcomes"] = allOutcomes
-	b, err := json.Marshal(allOutcomes)
+	b, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("error serializing report json: %s", err)
 	}

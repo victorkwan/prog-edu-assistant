@@ -52,6 +52,31 @@ func ParseFile(filename string) (*Notebook, error) {
 	return n, nil
 }
 
+func parseText(v interface{}) (text string, err error) {
+	ss, ok := v.([]interface{})
+	if !ok {
+		text, ok = v.(string)
+		if !ok {
+			err = fmt.Errorf("cell.source is neither a list nor string but %s",
+				reflect.TypeOf(v))
+				return
+		}
+	} else {
+		var lines []string
+		for _, s := range ss {
+			str, ok := s.(string)
+			if !ok {
+				err = fmt.Errorf("cell.source has not a string but %s",
+					reflect.TypeOf(s))
+					return
+			}
+			lines = append(lines, str)
+		}
+		text = strings.Join(lines, "")
+	}
+	return
+}
+
 func Parse(b []byte) (*Notebook, error) {
 	data := make(map[string]interface{})
 	err := json.Unmarshal(b, &data)
@@ -88,23 +113,7 @@ func Parse(b []byte) (*Notebook, error) {
 			if v, ok := celldata["metadata"]; ok {
 				cell.Metadata, ok = v.(map[string]interface{})
 			}
-			if v, ok := celldata["source"]; ok {
-				ss, ok := v.([]interface{})
-				if !ok {
-					return nil, fmt.Errorf("cell.source is not a list but %s",
-						reflect.TypeOf(v))
-				}
-				var lines []string
-				for _, s := range ss {
-					str, ok := s.(string)
-					if !ok {
-						return nil, fmt.Errorf("cell.source has not a string but %s",
-							reflect.TypeOf(s))
-					}
-					lines = append(lines, str)
-				}
-				cell.Source = strings.Join(lines, "")
-			}
+			cell.Source, err = parseText(celldata["source"])
 			if v, ok := celldata["outputs"]; ok {
 				ss, ok := v.([]interface{})
 				if !ok {
@@ -126,26 +135,10 @@ func Parse(b []byte) (*Notebook, error) {
 						return nil, fmt.Errorf("output name is not a string but %s",
 							reflect.TypeOf(nameVal))
 					}
-					textVal, ok := m["text"]
-					if !ok {
-						// Skip any non-text outputs.
-						continue
+					outputs[name], err = parseText(m["text"])
+					if err != nil {
+						return nil, fmt.Errorf("could not parse text: %s", err)
 					}
-					ss, ok := textVal.([]interface{})
-					if !ok {
-						return nil, fmt.Errorf("cell.output.text is not a list but %s",
-							reflect.TypeOf(textVal))
-					}
-					var lines []string
-					for _, s := range ss {
-						str, ok := s.(string)
-						if !ok {
-							return nil, fmt.Errorf("cell.output.text item is not a string but %s",
-								reflect.TypeOf(s))
-						}
-						lines = append(lines, str)
-					}
-					outputs[name] = strings.Join(lines, "")
 				}
 				cell.Outputs = outputs
 			}

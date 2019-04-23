@@ -84,7 +84,11 @@ define([
               processData: false,
               method: "POST",
               success: function(data, status, jqXHR) {
-                window.console.log("Upload OK", data);
+		// Open the report in a new tab.
+		var u = new URL(url);
+		var reportURL = u.protocol + "//" + u.host + data;
+		window.open(reportURL, '_blank');
+		window.console.log("Upload OK", reportURL);
               },
               error: function(jqXHR, status, err) {
                 window.console.log("Upload failed", status, err);
