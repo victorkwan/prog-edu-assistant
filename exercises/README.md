@@ -64,16 +64,20 @@ assignment belongs to.
 
 This is useful for deciding which assignment the uploaded notebook is for and
 for picking the correct autograder script to run. The metadata is provided in
-the master notebook using triple-backtick sections with regexp-friendly markers:
+the master notebook using triple-backtick sections with regexp-friendly markers
+in YAML format (which means that the marker itself becomes a YAML comment and is
+ignored). `# ASSIGNMENT METADATA` is copied into the notebook-level metadata
+field of the student notebook, and `# EXERCISE METADATA` is copied into the cell
+level metadata of the next code cell, which designates it as a _solution cell_.
 
     ```
     # ASSIGNMENT METADATA
-    assignment_id = "HelloWorld"
+    assignment_id: "HelloWorld"
     ```
 
     ```
     # EXERCISE METADATA
-    exercise_id = "hello1"
+    exercise_id: "hello1"
     ```
 
 ## Structure of autograder scripts
@@ -83,41 +87,23 @@ NOTE: This is a proposed format that is subject to discussion and change.
 The autograder scripts have two representations: the directory format and the
 notebook format. The notebook format is the authoritative source and is
 contained in the master notebook. The directory format is produced at build time
-and
+and is included into the autograder image, as well for automated testing of the
+notebooks.
 
-The python files in the this directory with the basename matching the assignment
-notebooks are autograder scripts.
+In the directory format, all autograder scripts take the form of python unit
+tests (`*_test.py` files) runnable by the unittest runner. The student's
+submission will be written into a `submission.py` file into the same directory
+(actually directory will be constructed using overlayfs).
 
-Each autograder script is a python library that should expose the following
-function:
-
-    def Autograde(content, metadata)
-      # Input:
-      # * content - the uploaded content as a text string. Typically
-      #             this is a JSON-encoded Jupyter notebook, but it may
-      #             be a standalone python file or something else entirely
-      #             depending on the specific assignment.
-      # * metadata - optional JSON-encoded string with additional metadata
-      #              that may have been provided with the upload, or None.
-      #              E.g. this may be used to pass the file name of the
-      #              upload, or to specify the assignment name explicitly.
-      #
-      # Returns: A JSON-encoded object with the result of analysis. It should
-      # include:
-      # * source - The source code that has been extracted as a students'
-      #            solution. The intention is that this code may be presented
-      #            to the student in the report.
-      # * findings - A list of findings that specify a range (starting
-      #              line/column and ending line/column) of the source
-      #              code and the message. The intention is that these may
-      #              be rendered as wavy underline or colored messages with
-      #              details shown on mouse hover.
-      # * messages - A list of general human-readable message to be presented
-      #              to the student.
+There should be two special scripts, `extract.py` and `report.py` to extract the
+student submission from submitted blob (typically extract the souce code of one
+Jupyter notebook cell) and to convert a vector of test outcomes into a
+human-readable report respectively.
 
 ## List of the exercises
 
-*   `helloworld-en.ipynb` --- a minimal exercise template
+*   `helloworld-en-master.ipynb` --- an example master assignment notebook to
+    demonstrate the syntax.
 
 ## Request for contributions
 

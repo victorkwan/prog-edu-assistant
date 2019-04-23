@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/golang/glog"
 	"gopkg.in/yaml.v2"
 )
 
@@ -161,34 +162,172 @@ func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, er
 	}, nil
 }
 
+// TODO(salikh): Implement smarter replacement strategies similar to jassign, e.g.
+// x = 1 # SOLUTION   ===>   x = ...
 var (
-	assignmentMetadataRegex = regexp.MustCompile("(?m)^# ASSIGNMENT METADATA")
-	exerciseMetadataRegex   = regexp.MustCompile("(?m)^# EXERCISE METADATA")
+	assignmentMetadataRegex = regexp.MustCompile("(?m)^[ \t]*# ASSIGNMENT METADATA")
+	exerciseMetadataRegex   = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
 	tripleBacktickedRegex   = regexp.MustCompile("(?ms)^```.*^```")
-	solutionBeginRegex      = regexp.MustCompile("(?m)^# BEGIN SOLUTION")
-	solutionEndRegex        = regexp.MustCompile("(?m)^# END SOLUTION")
-	promptBeginRegex        = regexp.MustCompile("(?m)^# BEGIN PROMPT")
-	promptEndRegex          = regexp.MustCompile("(?m)^# END PROMPT")
-	testRegex               = regexp.MustCompile("(?m)^# TEST")
-	unittestBeginRegex      = regexp.MustCompile("(?m)^# BEGIN UNITTEST")
-	unittestEndRegex        = regexp.MustCompile("(?m)^# END UNITTEST")
-	autotestBeginRegex      = regexp.MustCompile("(?m)^# BEGIN AUTOTEST")
-	autotestEndRegex        = regexp.MustCompile("(?m)^# END AUTOTEST")
+	solutionBeginRegex      = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
+	solutionEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END SOLUTION *")
+	promptBeginRegex        = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n")
+	promptEndRegex          = regexp.MustCompile("\n[ \t]*\"\"\" # END PROMPT *\n")
+	testRegex               = regexp.MustCompile("(?m)^[ \t]*# TEST *")
+	unittestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *")
+	unittestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
+	autotestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN AUTOTEST *")
+	autotestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END AUTOTEST *")
 )
+
+// hasMetadata detects whether the markdown block has a triple backtick-fenced block
+// with a metadata marker given as a Regexp.
+func hasMetadata(re *regexp.Regexp, source string) bool {
+	mm := tripleBacktickedRegex.FindAllStringIndex(source, -1)
+	for _, m := range mm {
+		text := source[m[0]+3 : m[1]-3]
+		if re.MatchString(text) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractMetadata extracts the metadata from the markdown cell, using the provided
+// regexp to detect metadata fenced blocks. It returns nil if the source does not
+// have any metadata fenced block. The second return argument is the source code
+// with metadata block cut out, or the input source string if there were no metadata.
+func extractMetadata(re *regexp.Regexp, source string) (metadata map[string]interface{}, newSource string, err error) {
+	var outputs []string
+	mm := tripleBacktickedRegex.FindAllStringIndex(source, -1)
+	for i, m := range mm {
+		if len(outputs) == 0 {
+			outputs = append(outputs, source[0:m[0]])
+		}
+		text := source[m[0]+3 : m[1]-3]
+		if re.MatchString(text) {
+			metadata = make(map[string]interface{})
+			err = yaml.Unmarshal([]byte(text), &metadata)
+			if err != nil {
+				err = fmt.Errorf("error parsing metadata: %s", err)
+				return
+			}
+		} else {
+			outputs = append(outputs, source[m[0]:m[1]])
+		}
+		if i < len(mm)-1 {
+			outputs = append(outputs, source[m[1]:mm[i+1][0]])
+		} else {
+			outputs = append(outputs, source[m[1]:])
+		}
+	}
+	newSource = strings.Join(outputs, "")
+	return
+}
 
 // ToStudent converts a master notebook into the student notebook.
 func (n *Notebook) ToStudent() (*Notebook, error) {
+	// Assignment metadata is global for the notebook.
 	assignmentMetadata := make(map[string]interface{})
-	exerciseMetadata := make(map[string]interface{})
+	// Exercise metadata only applies to the next code block,
+	// and is nil otherwise.
+	var exerciseMetadata map[string]interface{}
+	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
+		source := cell.Source
+		if cell.Type == "markdown" {
+			var err error
+			if hasMetadata(assignmentMetadataRegex, cell.Source) {
+				var metadata map[string]interface{}
+				metadata, source, err = extractMetadata(assignmentMetadataRegex, cell.Source)
+				if err != nil {
+					return nil, err
+				}
+				// Merge assignment metadata to global table.
+				for k, v := range metadata {
+					assignmentMetadata[k] = v
+				}
+			}
+			if hasMetadata(exerciseMetadataRegex, cell.Source) {
+				// Replace exercise metadata.
+				exerciseMetadata, source, err = extractMetadata(exerciseMetadataRegex, cell.Source)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		if cell.Type != "code" {
+			return &Cell{Source: source}, nil
+		}
+		prompt := ""
+		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
+			mend := promptEndRegex.FindStringIndex(source)
+			if mend == nil {
+				return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
+			}
+			if mend[1] < mbeg[0] {
+				return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
+			}
+			prompt = source[mbeg[1]:mend[0]]
+			glog.V(3).Infof("prompt = %q", prompt)
+			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
+			glog.V(3).Infof("stripped source = %q", source)
+		}
+		if mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1); mbeg != nil {
+			mend := solutionEndRegex.FindAllStringIndex(source, -1)
+			if len(mbeg) != len(mend) {
+				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
+			}
+			var outputs []string
+			for i, m := range mbeg {
+				if i == 0 {
+					outputs = append(outputs, source[0:m[0]])
+				}
+				// TODO(salikh): Fix indentation and add more heuristics.
+				if prompt == "" {
+					indent := source[m[2]:m[3]]
+					prompt = indent + "..."
+				}
+				outputs = append(outputs, prompt)
+				glog.V(3).Infof("prompt: %q", prompt)
+				if i < len(mbeg)-1 {
+					outputs = append(outputs, source[mend[i][1]:mbeg[i+1][0]])
+				} else {
+					outputs = append(outputs, source[mend[i][1]:])
+					glog.V(3).Infof("last part: %q", source[mend[i][1]:])
+				}
+			}
+			return &Cell{
+				Type:     "code",
+				Metadata: exerciseMetadata,
+				Source:   strings.Join(outputs, ""),
+			}, nil
+		} else {
+			glog.V(3).Infof("BEGIN SOLUTION did not match")
+		}
+		// Skip any test cells.
+		if unittestBeginRegex.MatchString(source) ||
+			autotestBeginRegex.MatchString(source) {
+			return nil, nil
+		}
+		return cell, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transformed, nil
+}
+
+/*
+// ToAutograder converts a master notebook into the intermediate format called "autograder notebook".
+// The autograder notebook is a format where each cell corresponds to one file,
+// and the file name is stored in metadata["filename"]. It is later written into the autograder directory.
+func (n *Notebook) ToAutograder() (*Notebook, error) {
+	var assignmentID string
+	var exerciseID string
 	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
 		if cell.Type == "markdown" {
-			var outputs []string
 			mm := tripleBacktickedRegex.FindAllStringIndex(cell.Source, -1)
 			replace := false
 			for i, m := range mm {
-				if len(outputs) == 0 {
-					outputs = append(outputs, cell.Source[0:m[0]])
-				}
 				text := cell.Source[m[0]+3 : m[1]-3]
 				if assignmentMetadataRegex.MatchString(text) {
 					fmt.Printf("%q", text)
@@ -220,22 +359,43 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 		if cell.Type != "code" {
 			return cell, nil
 		}
-		if mbeg := solutionBeginRegex.FindAllStringIndex(cell.Source, -1); mbeg != nil {
-			mend := solutionEndRegex.FindAllStringIndex(cell.Source, -1)
+		source := cell.Source
+		prompt := ""
+		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
+			mend := promptEndRegex.FindStringIndex(source)
+			if mend == nil {
+				return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
+			}
+			if mend[1] < mbeg[0] {
+				return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
+			}
+			prompt = source[mbeg[1]:mend[0]]
+			glog.V(3).Infof("prompt = %q", prompt)
+			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
+			glog.V(3).Infof("stripped source = %q", source)
+		}
+		if mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1); mbeg != nil {
+			mend := solutionEndRegex.FindAllStringIndex(source, -1)
 			if len(mbeg) != len(mend) {
 				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
 			}
 			var outputs []string
 			for i, m := range mbeg {
 				if i == 0 {
-					outputs = append(outputs, cell.Source[0:m[0]])
+					outputs = append(outputs, source[0:m[0]])
 				}
 				// TODO(salikh): Fix indentation and add more heuristics.
-				outputs = append(outputs, "...")
+				if prompt == "" {
+					indent := source[m[2]:m[3]]
+					prompt = indent + "..."
+				}
+				outputs = append(outputs, prompt)
+				glog.V(3).Infof("prompt: %q", prompt)
 				if i < len(mbeg)-1 {
-					outputs = append(outputs, cell.Source[mend[i][1]:mbeg[i+1][0]])
+					outputs = append(outputs, source[mend[i][1]:mbeg[i+1][0]])
 				} else {
-					outputs = append(outputs, cell.Source[mend[i][1]:])
+					outputs = append(outputs, source[mend[i][1]:])
+					glog.V(3).Infof("last part: %q", source[mend[i][1]:])
 				}
 			}
 			return &Cell{
@@ -243,10 +403,12 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 				Metadata: exerciseMetadata,
 				Source:   strings.Join(outputs, ""),
 			}, nil
+		} else {
+			glog.V(3).Infof("BEGIN SOLUTION did not match")
 		}
 		// Skip any test cells.
-		if unittestBeginRegex.MatchString(cell.Source) ||
-			autotestBeginRegex.MatchString(cell.Source) {
+		if unittestBeginRegex.MatchString(source) ||
+			autotestBeginRegex.MatchString(source) {
 			return nil, nil
 		}
 		return cell, nil
@@ -256,3 +418,4 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 	}
 	return transformed, nil
 }
+*/

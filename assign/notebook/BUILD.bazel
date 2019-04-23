@@ -7,6 +7,7 @@ go_library(
     srcs = ["notebook.go"],
     importpath = "github.com/google/prog-edu-assistant/assign/notebook",
     deps = [
+        "@com_github_golang_glog//:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )
