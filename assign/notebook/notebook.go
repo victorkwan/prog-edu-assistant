@@ -462,6 +462,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 					exerciseID = id
 					_ = exerciseID
 				}
+				glog.V(3).Infof("parsed metadata: %s", exerciseMetadata)
 			}
 		}
 		if cell.Type != "code" {
@@ -488,6 +489,8 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			}
 			// TODO(salikh): Implement syntax tests too based on metadata.
 			text = "import submission;\n" + text
+			glog.V(3).Infof("metadata: %v, exercise_id: %q", exerciseMetadata, exerciseID)
+			glog.V(3).Infof("parsed unit test: %s\n", text)
 			return &Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
@@ -500,5 +503,6 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 	if err != nil {
 		return nil, err
 	}
+	transformed.Metadata = assignmentMetadata
 	return transformed, nil
 }

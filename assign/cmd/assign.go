@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/google/prog-edu-assistant/assign/notebook"
 )
@@ -24,8 +25,9 @@ type commandDesc struct {
 }
 
 var commands = map[string]commandDesc{
-	"parse":   commandDesc{"Try parsing the input", parseCommand},
-	"student": commandDesc{"Extract student notebook", studentCommand},
+	"parse":      commandDesc{"Try parsing the input", parseCommand},
+	"student":    commandDesc{"Extract student notebook", studentCommand},
+	"autograder": commandDesc{"Extract autograder scripts", autograderCommand},
 }
 
 func main() {
@@ -88,4 +90,42 @@ func studentCommand() error {
 		return err
 	}
 	return ioutil.WriteFile(*output, b, 0775)
+}
+
+func autograderCommand() error {
+	n, err := notebook.Parse(*input)
+	if err != nil {
+		return err
+	}
+	n, err = n.ToAutograder()
+	if err != nil {
+		return err
+	}
+	assignmentID := n.Metadata["assignment_id"].(string)
+	if *output == "" {
+		fmt.Println("## Dry run mode. Would generate the following files:\n")
+		for _, cell := range n.Cells {
+			exerciseID := cell.Metadata["exercise_id"].(string)
+			filename := cell.Metadata["filename"].(string)
+			source := cell.Source
+			fmt.Printf("-- %s/%s/%s:\n%s\n\n", assignmentID, exerciseID, filename, source)
+		}
+		return nil
+	}
+	err = os.MkdirAll(*output, 0775)
+	if err != nil {
+		return fmt.Errorf("could not create output directory %q: %s", *output, err)
+	}
+	for _, cell := range n.Cells {
+		source := cell.Source
+		filename := cell.Metadata["filename"].(string)
+		exerciseID := cell.Metadata["exercise_id"].(string)
+		dir := filepath.Join(*output, assignmentID, exerciseID)
+		err = os.MkdirAll(dir, 0775)
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(filepath.Join(dir, filename), []byte(source), 0775)
+	}
+	return nil
 }
