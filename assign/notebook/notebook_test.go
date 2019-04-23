@@ -7,7 +7,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-type toStudentTest struct {
+type cellRewriteTest struct {
 	name string
 	// input is the list of input cells (source code).
 	input []string
@@ -37,7 +37,7 @@ func createNotebook(src []string) *Notebook {
 }
 
 func TestToStudent(t *testing.T) {
-	tests := []toStudentTest{
+	tests := []cellRewriteTest{
 		{
 			name:  "Unchanged1",
 			input: []string{"# unchanged"},
@@ -47,6 +47,11 @@ func TestToStudent(t *testing.T) {
 			name:  "Unchanged2",
 			input: []string{"# unchanged\nmore", "aaa\nbbb"},
 			want:  []string{"# unchanged\nmore", "aaa\nbbb"},
+		},
+		{
+			name:  "Unchanged3",
+			input: []string{"## unchanged\nmore", "aaa\nbbb"},
+			want:  []string{"## unchanged\nmore", "aaa\nbbb"},
 		},
 		{
 			name:  "Solution1",
@@ -122,6 +127,69 @@ x = 1
 			got, err := n.ToStudent()
 			if err != nil {
 				t.Errorf("ToStudent([%s]) returned error %s, want success",
+					strings.Join(tt.input, "]["), err)
+				return
+			}
+			if len(got.Cells) != len(tt.want) {
+				t.Errorf("got %d output cells, want %d", len(got.Cells), len(tt.want))
+			}
+			var gotSources []string
+			for _, cell := range got.Cells {
+				gotSources = append(gotSources, cell.Source)
+			}
+			wantText := strings.Join(tt.want, "\n")
+			gotText := strings.Join(gotSources, "\n")
+			dmp := diffmatchpatch.New()
+			diffs := dmp.DiffMain(wantText, gotText, true)
+			different := false
+			for _, d := range diffs {
+				if d.Type != diffmatchpatch.DiffEqual {
+					different = true
+					break
+				}
+			}
+			if different {
+				t.Logf("Got:\n%q\n--\nWant:\n%q\n--", gotText, wantText)
+				t.Errorf("Diffs:\n%s", dmp.DiffPrettyText(diffs))
+			}
+		})
+	}
+}
+
+func TestToAutograder(t *testing.T) {
+	tests := []cellRewriteTest{
+		{
+			name:  "Ignored1",
+			input: []string{"# ignored", "# ignored2", "## ignored markdown"},
+			want:  []string{},
+		},
+		{
+			name: "Extracted1",
+			input: []string{`
+# junk
+# BEGIN UNITTEST
+import unittest;
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+# END UNITTEST
+# junk`},
+			want: []string{`import submission;
+import unittest;
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+`},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := createNotebook(tt.input)
+			got, err := n.ToAutograder()
+			if err != nil {
+				t.Errorf("ToAutograder([%s]) returned error %s, want success",
 					strings.Join(tt.input, "]["), err)
 				return
 			}

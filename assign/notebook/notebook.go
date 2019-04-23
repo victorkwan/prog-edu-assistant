@@ -236,7 +236,7 @@ var (
 	promptBeginRegex        = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n")
 	promptEndRegex          = regexp.MustCompile("\n[ \t]*\"\"\" # END PROMPT *\n")
 	testRegex               = regexp.MustCompile("(?m)^[ \t]*# TEST *")
-	unittestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *")
+	unittestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *\n")
 	unittestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
 	autotestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN AUTOTEST *")
 	autotestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END AUTOTEST *")
@@ -253,6 +253,24 @@ func hasMetadata(re *regexp.Regexp, source string) bool {
 		}
 	}
 	return false
+}
+
+// If text matches begin and end regexes in sequences, returns
+// the text that is enclosed by matches. If the text does not match,
+// return empty string. Returns error in pathological cases.
+func cutText(begin, end *regexp.Regexp, text string) (string, error) {
+	mbeg := begin.FindStringIndex(text)
+	if mbeg == nil {
+		return "", nil
+	}
+	mend := end.FindStringIndex(text)
+	if mend == nil {
+		return "", fmt.Errorf("missing %s", end)
+	}
+	if mend[1] < mbeg[0] {
+		return "", fmt.Errorf("%s before %s", end, begin)
+	}
+	return text[mbeg[1]:mend[0]], nil
 }
 
 // extractMetadata extracts the metadata from the markdown cell, using the provided
@@ -321,6 +339,8 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			return &Cell{Type: cell.Type, Source: source}, nil
 		}
 		prompt := ""
+		if promptBeginRegex.MatchString(source) {
+		}
 		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
 			mend := promptEndRegex.FindStringIndex(source)
 			if mend == nil {
@@ -379,106 +399,106 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 	return transformed, nil
 }
 
-/*
+func cloneMetadata(metadata map[string]interface{}, extras ...interface{}) map[string]interface{} {
+	ret := make(map[string]interface{})
+	// Copy the metadata.
+	for k, v := range metadata {
+		ret[k] = v
+	}
+	// Add the extra values.
+	for i := 0; i < len(extras); i += 2 {
+		ret[extras[i].(string)] = extras[i+1]
+	}
+	return ret
+}
+
+var (
+	testClassRegex = regexp.MustCompile(`(?m)^[ \t]*class ([a-zA-Z_0-9]*)\(unittest\.TestCase\):`)
+)
+
 // ToAutograder converts a master notebook into the intermediate format called "autograder notebook".
 // The autograder notebook is a format where each cell corresponds to one file,
 // and the file name is stored in metadata["filename"]. It is later written into the autograder directory.
 func (n *Notebook) ToAutograder() (*Notebook, error) {
+	// Assignment metadata is global for the notebook.
+	assignmentMetadata := make(map[string]interface{})
 	var assignmentID string
+	// Exercise ID is state that applies to subsequent unittest cells.
 	var exerciseID string
+	var exerciseMetadata map[string]interface{}
 	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
+		source := cell.Source
 		if cell.Type == "markdown" {
-			mm := tripleBacktickedRegex.FindAllStringIndex(cell.Source, -1)
-			replace := false
-			for i, m := range mm {
-				text := cell.Source[m[0]+3 : m[1]-3]
-				if assignmentMetadataRegex.MatchString(text) {
-					fmt.Printf("%q", text)
-					err := yaml.Unmarshal([]byte(text), &assignmentMetadata)
-					if err != nil {
-						return nil, fmt.Errorf("error parsing ASSIGNMENT METADATA: %s", err)
-					}
-					replace = true
+			var err error
+			if hasMetadata(assignmentMetadataRegex, cell.Source) {
+				var metadata map[string]interface{}
+				metadata, source, err = extractMetadata(assignmentMetadataRegex, cell.Source)
+				if err != nil {
+					return nil, err
 				}
-				if exerciseMetadataRegex.MatchString(text) {
-					exerciseMetadata = make(map[string]interface{})
-					fmt.Printf("%q", text)
-					err := yaml.Unmarshal([]byte(text), &exerciseMetadata)
-					if err != nil {
-						return nil, fmt.Errorf("error parsing EXERCISE METADATA: %s", err)
+				if v, ok := metadata["assignment_id"]; ok {
+					id, ok := v.(string)
+					if !ok {
+						return nil, fmt.Errorf("assignment_id is not a string, but %s", reflect.TypeOf(v))
 					}
-					replace = true
+					assignmentID = id
 				}
-				if i < len(mm)-1 {
-					outputs = append(outputs, cell.Source[m[1]:mm[i+1][0]])
-				} else {
-					outputs = append(outputs, cell.Source[m[1]:])
+				// Merge assignment metadata to global table.
+				for k, v := range metadata {
+					assignmentMetadata[k] = v
 				}
 			}
-			if replace {
-				cell.Source = strings.Join(outputs, "")
+			if hasMetadata(exerciseMetadataRegex, cell.Source) {
+				// Replace exercise metadata.
+				exerciseMetadata, source, err = extractMetadata(exerciseMetadataRegex, cell.Source)
+				if err != nil {
+					return nil, err
+				}
+				if v, ok := exerciseMetadata["exercise_id"]; ok {
+					id, ok := v.(string)
+					if !ok {
+						return nil, fmt.Errorf("exercise_id is not a string, but %s", reflect.TypeOf(v))
+					}
+					exerciseID = id
+					_ = exerciseID
+				}
 			}
 		}
 		if cell.Type != "code" {
-			return cell, nil
-		}
-		source := cell.Source
-		prompt := ""
-		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
-			mend := promptEndRegex.FindStringIndex(source)
-			if mend == nil {
-				return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
-			}
-			if mend[1] < mbeg[0] {
-				return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
-			}
-			prompt = source[mbeg[1]:mend[0]]
-			glog.V(3).Infof("prompt = %q", prompt)
-			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
-			glog.V(3).Infof("stripped source = %q", source)
-		}
-		if mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1); mbeg != nil {
-			mend := solutionEndRegex.FindAllStringIndex(source, -1)
-			if len(mbeg) != len(mend) {
-				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
-			}
-			var outputs []string
-			for i, m := range mbeg {
-				if i == 0 {
-					outputs = append(outputs, source[0:m[0]])
-				}
-				// TODO(salikh): Fix indentation and add more heuristics.
-				if prompt == "" {
-					indent := source[m[2]:m[3]]
-					prompt = indent + "..."
-				}
-				outputs = append(outputs, prompt)
-				glog.V(3).Infof("prompt: %q", prompt)
-				if i < len(mbeg)-1 {
-					outputs = append(outputs, source[mend[i][1]:mbeg[i+1][0]])
-				} else {
-					outputs = append(outputs, source[mend[i][1]:])
-					glog.V(3).Infof("last part: %q", source[mend[i][1]:])
-				}
-			}
-			return &Cell{
-				Type:     "code",
-				Metadata: exerciseMetadata,
-				Source:   strings.Join(outputs, ""),
-			}, nil
-		} else {
-			glog.V(3).Infof("BEGIN SOLUTION did not match")
-		}
-		// Skip any test cells.
-		if unittestBeginRegex.MatchString(source) ||
-			autotestBeginRegex.MatchString(source) {
+			// We do not need to emit non-code cells.
 			return nil, nil
 		}
-		return cell, nil
+		if unittestBeginRegex.MatchString(source) {
+			text, err := cutText(unittestBeginRegex, unittestEndRegex, source)
+			if err != nil {
+				return nil, err
+			}
+			filename := ""
+			if m := testClassRegex.FindStringSubmatch(source); m != nil {
+				basename := m[1]
+				if strings.HasSuffix(basename, "Test") {
+					basename = basename[:len(basename)-4]
+				} else if strings.HasPrefix(basename, "Test") {
+					basename = basename[4:]
+				}
+				filename = basename + "_test.py"
+			}
+			if filename == "" {
+				return nil, fmt.Errorf("could not detect the test name for unittest: %s", source)
+			}
+			// TODO(salikh): Implement syntax tests too based on metadata.
+			text = "import submission;\n" + text
+			return &Cell{
+				Type:     "code",
+				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
+				Source:   text,
+			}, nil
+		}
+		// Do not emit other code cells.
+		return nil, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return transformed, nil
 }
-*/
