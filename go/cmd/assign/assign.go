@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/prog-edu-assistant/assign/notebook"
+	"github.com/google/prog-edu-assistant/notebook"
 )
 
 var (
