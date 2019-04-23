@@ -6,7 +6,7 @@ genrule(
     srcs = [
         "helloworld-en-master.ipynb",
     ],
-    outs = ["helloworld-en.ipynb"],
+    outs = ["helloworld-en-student.ipynb"],
     cmd = """$(location //assign/cmd:assign) --input="$<" --output="$@" --command=student""",
     tools = [
         "//assign/cmd:assign",

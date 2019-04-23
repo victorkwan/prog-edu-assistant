@@ -16,20 +16,24 @@ import (
 
 // Notebook represents a parsed Jupyter notebook.
 type Notebook struct {
-	NBFormat      int
-	NBFormatMinor int
-	Data          map[string]interface{}
-	Metadata      map[string]interface{}
-	Cells         []*Cell
+	// NBFormat is the nbformat field.
+	NBFormat int `json:"nbformat"`
+	// NBFormatMinor is the nbformat_minor field.
+	NBFormatMinor int `json:"nbformat_minor"`
+	// Data is the raw parsed JSON data. It is not written back on serialization.
+	Data map[string]interface{} `json:"-"`
+	// Metadat is the map of metadata.
+	Metadata map[string]interface{} `json:"metadata"`
+	// Cells is the list of cells.
+	Cells []*Cell `json:"cells"`
 }
 
 // Cell represents one cell of a Jupyter notebook. It is limited in
 // the kind of cells it can represent.
 type Cell struct {
 	Type string
-	// Data is the raw contents of the parsed cell.
-	// When serializing cell back to JSON, Metadata, Outputs and Source
-	// take precedence of ver the contents in this map.
+	// Data is the raw parsed JSON contents of the cell.
+	// When serializing cell back to JSON, Data is ignored.
 	Data     map[string]interface{}
 	Metadata map[string]interface{}
 	Outputs  map[string]string
@@ -141,6 +145,65 @@ func Parse(filename string) (*Notebook, error) {
 		}
 	}
 	return ret, nil
+}
+
+func marshalText(text string) []interface{} {
+	var ret []interface{}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if i == len(lines)-1 {
+			ret = append(ret, line)
+			break
+		}
+		ret = append(ret, line+"\n")
+	}
+	return ret
+}
+
+// json returns a JSON-like map representing a cell.
+func (cell *Cell) json() map[string]interface{} {
+	emptyMap := make(map[string]interface{})
+	ret := make(map[string]interface{})
+	var outputs []interface{}
+	// TODO(salikh): Do we need to handle any other kind of output?
+	for name, output := range cell.Outputs {
+		o := make(map[string]interface{})
+		o["name"] = name
+		o["output_type"] = "stream"
+		o["text"] = marshalText(output)
+		outputs = append(outputs, o)
+	}
+	if cell.Metadata != nil {
+		ret["metadata"] = cell.Metadata
+	} else {
+		ret["metadata"] = emptyMap
+	}
+	ret["cell_type"] = cell.Type
+	if cell.Type == "code" {
+		ret["execution_count"] = nil
+		if len(outputs) > 0 {
+			ret["outputs"] = outputs
+		} else {
+			// Empty slice.
+			ret["outputs"] = []interface{}{}
+		}
+	}
+	ret["source"] = marshalText(cell.Source)
+	return ret
+}
+
+// Marshal produces a JSON content suitable for writing to .ipynb file.
+func (n *Notebook) Marshal() ([]byte, error) {
+	output := make(map[string]interface{})
+	var cells []interface{}
+	for _, cell := range n.Cells {
+		cells = append(cells, cell.json())
+	}
+	output["nbformat"] = n.NBFormat
+	output["nbformat_minor"] = n.NBFormatMinor
+	output["metadata"] = n.Metadata
+	output["cells"] = cells
+	return json.Marshal(output)
 }
 
 func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, error) {
@@ -255,7 +318,7 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			}
 		}
 		if cell.Type != "code" {
-			return &Cell{Source: source}, nil
+			return &Cell{Type: cell.Type, Source: source}, nil
 		}
 		prompt := ""
 		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {

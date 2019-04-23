@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/google/prog-edu-assistant/assign/notebook"
 )
@@ -77,15 +79,13 @@ func studentCommand() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%d cells\n", len(n.Cells))
-	for _, cell := range n.Cells {
-		fmt.Printf("%s: %s\n", cell.Type, cell.Source)
-		/*
-			for name, val := range cell.Outputs {
-				fmt.Printf("%s: %s\n", name, val)
-			}
-		*/
-		fmt.Println("--")
+	b, err := n.Marshal()
+	if err != nil {
+		return fmt.Errorf("error serializing notebook: %s", err)
 	}
-	return nil
+	if *output == "" {
+		_, err := os.Stdout.Write(b)
+		return err
+	}
+	return ioutil.WriteFile(*output, b, 0775)
 }
