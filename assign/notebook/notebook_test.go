@@ -54,6 +54,11 @@ func TestToStudent(t *testing.T) {
 			want:  []string{"..."},
 		},
 		{
+			name:  "Solution2",
+			input: []string{"# BEGIN SOLUTION\nx = 1\n# END SOLUTION\n# Junk"},
+			want:  []string{"...\n# Junk"},
+		},
+		{
 			name:  "Unittest1",
 			input: []string{"# BEGIN UNITTEST\nx = 1\n# END UNITTEST"},
 			want:  []string{},

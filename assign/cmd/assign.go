@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	command = flag.String("command", "parse", "The command to execute.")
+	command = flag.String("command", "", "The command to execute.")
 	input   = flag.String("input", "",
 		"The file name of the input master notebook.")
 	output = flag.String("output", "",
@@ -38,7 +38,7 @@ func run() error {
 	if *command == "" {
 		fmt.Printf("List of known commands:\n")
 		for name, cmd := range commands {
-			fmt.Printf("  %s\t%s\n", name, cmd.Help)
+			fmt.Printf("  %s   \t%s\n", name, cmd.Help)
 		}
 		return fmt.Errorf("command is not specified with --command.")
 	}
