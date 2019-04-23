@@ -53,13 +53,22 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("metadata is not a map, but %s", reflect.TypeOf(v))
 	}
+	v, ok = metadata["submission_id"]
+	if !ok {
+		return nil, fmt.Errorf("request did not have submission_id")
+	}
+	submissionID, ok := v.(string)
+	if !ok {
+		return nil, fmt.Errorf("metadata.submission_id is not a string but %s",
+			reflect.TypeOf(v))
+	}
 	v, ok = metadata["assignment_id"]
 	if !ok {
 		return nil, fmt.Errorf("metadata does not have assignment_id")
 	}
 	assignmentID, ok := v.(string)
 	if !ok {
-		return nil, fmt.Errorf("metadata['assignment_id'] is not a string but %s",
+		return nil, fmt.Errorf("metadata.assignment_id is not a string but %s",
 			reflect.TypeOf(v))
 	}
 	dir := filepath.Join(ag.Dir, assignmentID)
@@ -116,6 +125,10 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			allOutcomes[k] = v
 		}
 	}
+	result := make(map[string]interface{})
+	result["assignment_id"] = assignmentID
+	result["submission_id"] = submissionID
+	result["outcomes"] = allOutcomes
 	b, err := json.Marshal(allOutcomes)
 	if err != nil {
 		return nil, fmt.Errorf("error serializing report json: %s", err)
