@@ -1,0 +1,10 @@
+# Design of autograder interface
+
+A worker daemon is started inside a container that is crafted to provide
+a limited environment for running python code. Additional isolation
+is provided by nsjail.
+
+Autograder scripts are built in advance and shipped inside the worker
+container image. The matching of the submitted Jupyter notebook to
+the autograder scripts is made by using metadata embedded in the Jupyter
+notebook.
