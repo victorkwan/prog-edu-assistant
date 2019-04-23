@@ -7,9 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/google/prog-edu-assistant/queue"
 	"github.com/google/prog-edu-assistant/autograder"
+	"github.com/golang/glog"
 )
 
 var (
@@ -21,6 +24,8 @@ var (
 		"The name of the queue to post the reports.")
 	autograderDir = flag.String("autograder_dir", "tmp",
 		"The root directory of autograder scripts.")
+	nsjailPath = flag.String("nsjail_path", "/usr/local/bin/nsjail",
+		"The path to nsjail.")
 )
 
 func main() {
@@ -32,8 +37,17 @@ func main() {
 }
 
 func run() error {
-	var err error
+	if !filepath.IsAbs(*autograderDir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		*autograderDir = filepath.Join(cwd, *autograderDir)
+	}
+	*autograderDir = filepath.Clean(*autograderDir)
 	ag := autograder.New(*autograderDir)
+	ag.NSJailPath = *nsjailPath
+	var err error
 	q, err := queue.Open(*queueSpec)
 	if err != nil {
 		return fmt.Errorf("error opening queue %q: %s", *queueSpec, err)
@@ -49,6 +63,7 @@ func run() error {
 			// TODO(salikh): Add remote logging and monitoring.
 			log.Println(err)
 		}
+		glog.Infof("Grade result: %s", string(report))
 		err = q.Post(*reportQueue, report)
 		if err != nil {
 			log.Println(err)

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/google/prog-edu-assistant/autograder"
 )
@@ -13,6 +15,8 @@ import (
 var (
 	autograderDir = flag.String("autograder_dir", "tmp",
 		"The root directory of autograder scripts.")
+	nsjailPath = flag.String("nsjail_path", "/usr/local/bin/nsjail",
+		"The path to nsjail.")
 )
 
 func main() {
@@ -24,7 +28,17 @@ func main() {
 }
 
 func run() error {
-	ag := autograder.New(*autograderDir)
+	dir := *autograderDir
+	if !filepath.IsAbs(dir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		dir = filepath.Join(cwd, dir)
+	}
+	dir = filepath.Clean(dir)
+	ag := autograder.New(dir)
+	ag.NSJailPath = *nsjailPath
 	for _, filename := range flag.Args() {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {

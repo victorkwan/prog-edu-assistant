@@ -40,15 +40,23 @@ type Cell struct {
 	Source   string
 }
 
-func Parse(filename string) (*Notebook, error) {
+func ParseFile(filename string) (*Notebook, error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %s", filename, err)
 	}
-	data := make(map[string]interface{})
-	err = json.Unmarshal(b, &data)
+	n, err := Parse(b)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing JSON from %q: %s", filename, err)
+		return nil, fmt.Errorf("error reading notebook from %q: %s", filename, err)
+	}
+	return n, nil
+}
+
+func Parse(b []byte) (*Notebook, error) {
+	data := make(map[string]interface{})
+	err := json.Unmarshal(b, &data)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %s", err)
 	}
 	ret := &Notebook{
 		Data: data,
@@ -395,6 +403,9 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	for k, v := range assignmentMetadata {
+		transformed.Metadata[k] = v
 	}
 	return transformed, nil
 }

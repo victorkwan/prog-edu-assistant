@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/google/prog-edu-assistant/queue"
 )
@@ -30,7 +32,15 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("error opening queue %q: %s", *queueSpec, err)
 	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 	for _, filename := range flag.Args() {
+		if !filepath.IsAbs(filename) {
+			filename = filepath.Join(cwd, filename)
+		}
+		filename = filepath.Clean(filename)
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
 			return fmt.Errorf("error reading %q: %s", filename, err)

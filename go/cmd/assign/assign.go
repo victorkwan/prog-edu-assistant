@@ -54,7 +54,7 @@ func run() error {
 }
 
 func parseCommand() error {
-	n, err := notebook.Parse(*input)
+	n, err := notebook.ParseFile(*input)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func parseCommand() error {
 }
 
 func studentCommand() error {
-	n, err := notebook.Parse(*input)
+	n, err := notebook.ParseFile(*input)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func studentCommand() error {
 }
 
 func autograderCommand() error {
-	n, err := notebook.Parse(*input)
+	n, err := notebook.ParseFile(*input)
 	if err != nil {
 		return err
 	}
