@@ -12,3 +12,15 @@ genrule(
         "//go/cmd/assign",
     ],
 )
+
+genrule(
+    name = "helloworld-en-autograder",
+    srcs = [
+        "helloworld-en-master.ipynb",
+    ],
+    outs = ["helloworld-en-autograder"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=autograder""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
