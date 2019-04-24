@@ -4,11 +4,12 @@ cd "$(dirname "$0")"
 source ../venv/bin/activate
 
 set -ve
+
+# Start message queue:
+#sudo /etc/init.d/rabbitmq-server start
+
 # Start Jupyter notebook server
 jupyter notebook &
-
-# Start message queue
-sudo /etc/init.d/rabbitmq-server start
 
 cd go
 mkdir -p ../tmp-uploads
