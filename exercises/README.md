@@ -5,6 +5,9 @@ together.
 
 ## Installation of the client environment
 
+TODO(salikh): Provide a simpler version of installation instructions for the
+student environment.
+
 Install virtualenv. The command may differ depending on the system.
 
     # On Debian or Ubuntu linux
@@ -32,6 +35,11 @@ are generated:
 
 *   Student notebook
 *   Autograder test directory
+*   Automated tests for the notebook
+    *   Testing master solution against student tests
+    *   Testing master solution against autograder scripts
+    *   Testing autograder scripts agains a variety of incomplete and incorrect
+        solutions
 
 A student notebook, and by extension, the source master notebook should contain
 the following:
@@ -92,12 +100,13 @@ notebooks.
 
 In the directory format, all autograder scripts take the form of python unit
 tests (`*_test.py` files) runnable by the unittest runner. The student's
-submission will be written into a `submission.py` file into the same directory
-(actually directory will be constructed using overlayfs).
+submission or the master solution will be written into a `submission.py` file
+into the same directory (actually directory will be constructed using
+overlayfs).
 
-There should be two special scripts, `extract.py` and `report.py` to extract the
-student submission from submitted blob (typically extract the souce code of one
-Jupyter notebook cell) and to convert a vector of test outcomes into a
+There may be a few special scripts, e.g. `extract.py` and `report.py` to extract
+the student submission from submitted blob (typically extract the souce code of
+one Jupyter notebook cell) and to convert a vector of test outcomes into a
 human-readable report respectively.
 
 ## List of the exercises
