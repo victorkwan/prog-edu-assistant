@@ -117,3 +117,4 @@ dmypy.json
 go.sum
 bazel-*
 tmp
+/tmp-*
