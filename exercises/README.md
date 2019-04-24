@@ -88,6 +88,68 @@ level metadata of the next code cell, which designates it as a _solution cell_.
     exercise_id: "hello1"
     ```
 
+The solution cell in the master notebook should contain the master solution,
+marked with `BEGIN SOLUTION` and `END SOLUTION` markers:
+
+    # BEGIN SOLUTION
+		print("Hello, world")
+    # END SOLUTION
+
+The master solution will be replaced with `...` in the student notebook. If a
+different replacement is desired, `BEGIN PROMPT` and `END PROMPT` markers may be used _before_ the SOLUTION block:
+
+    """ # BEGIN PROMPT
+    # put your program here
+		pass
+		""" # END PROMPT
+    # BEGIN SOLUTION
+		print("Hello, world")
+    # END SOLUTION
+
+The cells that contain student-oriented tests should be marked with `TEST`.
+These typically using Python's `assert` builtin.
+
+TODO(salikh): Remove the `# TEST` marker in student notebook.
+
+TODO(salikh): Automatically extract `# TEST` cells as unit tests for the
+master notebook.
+
+The cells that are autograder scripts should be structured as standard Python unit tests using the `unittest` module. They need to have markers `BEGIN UNITTEST` and `END UNITTEST`. Only the lines between the markers are extracted into autograder scripts.
+The preamble before `BEGIN UNITTEST` is useful to set up the environment in a manner
+compatible with autograder environment, where 'import submission' is prepended.
+In the notebook the recommended way is to use ad-hoc objects:
+
+    from types import SimpleNamespace
+    submission = SimpleNamespace(printHello=printHello)
+	
+The part of the cell after the `END UNITTEST` marker is also not written to
+autograder scripts. It is useful to run the tests in the notebook inline, e.g.
+
+    import sys
+    import io
+    suite = unittest.TestLoader().loadTestsFromTestCase(HelloOutputTest)
+    errors = io.StringIO()
+		# TODO(salikh): Move SummaryTestResult into a library and make it installable
+		# via pip.
+    result = unittest.TextTestRunner(verbosity=4,stream=errors, resultclass=SummaryTestResult).run(suite)
+    # Optional.\n",
+    #print(errors.getvalue())
+
+    # TODO: Add some assertion on detected outcomes.
+    print(result.results)
+
+## Autograder tests
+
+TODO(salikh): Define the syntax and the way to run autograder tests, i.e. the tests
+that provide incomplete or incorrect input on purpose and check that the autograder
+scripts (unit tests defined above in `UNITTEST` cells) produce expected combinations
+of outcomes.
+
+		# BEGIN AUTOTEST
+		...
+		# END AUTOTEST
+
+
 ## Structure of autograder scripts
 
 NOTE: This is a proposed format that is subject to discussion and change.
