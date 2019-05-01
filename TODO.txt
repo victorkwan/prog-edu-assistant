@@ -1,29 +1,5 @@
-# Demo 0 - complete 2/20
-
-# Investigation of the prior art
-
-* Look up how ok autograder invokes grading
-  * proprietary image, source code not available.
-* Look at jassign: create assignment tests + notebooks from a single notebook
-  * Ideas are good, but the code is young and not very capable. The
-    requirements are different: no tests for autograder.
-
 # Demo 1 - deadline 5/14, pre-demo 4/24
 
-* Submit helloworld-en.ipynb with annotation examples
-  * Document master notebook format
-* Create an extractor binary (golang or python)
-  * Factor into small functions and add tests
-  * Create a Bazel BUILD for extracting student notebooks.
-* Extract autograder directories
-  * Extract autograder scripts
-* Autograder worker
-  * Listen to RabbitMQ
-  * Extract the solution code from notebook
-  * Run autograder scripts under nsjail
-  * Extract the test results from the output
-  x Run the report generator [#next]
-  * Post the report to RabbitMQ
 0 Server: listen to reports from RabbitMQ and serve reports.
 0 Authentication for the uploader
 > Annotate OOP assignment in master notebook format [#next]
@@ -62,3 +38,30 @@ Run the RabbitMQ daemon with Docker [#later]:
     docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
 
 [*] https://hub.docker.com/_/rabbitmq
+
+## Progress
+
+2019-02-20 Demo 0 - complete
+2019-04 Investigation of the prior art
+  * Look up how ok autograder invokes grading
+    * proprietary image, source code not available.
+  * Look at jassign: create assignment tests + notebooks from a single notebook
+    * Ideas are good, but the code is young and not very capable. The
+      requirements are different: no tests for autograder.
+2019-04-20
+* Submit helloworld-en.ipynb with annotation examples
+  * Document master notebook format
+* Create an extractor binary (golang or python)
+  * Factor into small functions and add tests
+  * Create a Bazel BUILD for extracting student notebooks.
+* Extract autograder directories
+  * Extract autograder scripts
+* Autograder worker
+  * Listen to RabbitMQ
+  * Extract the solution code from notebook
+  * Run autograder scripts under nsjail
+  * Extract the test results from the output
+  x Run the report generator [#next]
+  * Post the report to RabbitMQ
+
+2019-05-02
