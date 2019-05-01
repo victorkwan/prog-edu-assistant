@@ -1,0 +1,64 @@
+# Demo 0 - complete 2/20
+
+# Investigation of the prior art
+
+* Look up how ok autograder invokes grading
+  * proprietary image, source code not available.
+* Look at jassign: create assignment tests + notebooks from a single notebook
+  * Ideas are good, but the code is young and not very capable. The
+    requirements are different: no tests for autograder.
+
+# Demo 1 - deadline 5/14, pre-demo 4/24
+
+* Submit helloworld-en.ipynb with annotation examples
+  * Document master notebook format
+* Create an extractor binary (golang or python)
+  * Factor into small functions and add tests
+  * Create a Bazel BUILD for extracting student notebooks.
+* Extract autograder directories
+  * Extract autograder scripts
+* Autograder worker
+  * Listen to RabbitMQ
+  * Extract the solution code from notebook
+  * Run autograder scripts under nsjail
+  * Extract the test results from the output
+  x Run the report generator [#next]
+  * Post the report to RabbitMQ
+0 Server: listen to reports from RabbitMQ and serve reports.
+0 Authentication for the uploader
+> Annotate OOP assignment in master notebook format [#next]
+> End-to-end autograder demo for OOP assignment
+
+## Demo 1 decisions
+
+- Storage for submissions and reports.
+  * Local upload directory
+- Storage for autograder scripts.
+  * Autograder docker image.
+- Work manager for workers to poll for submissions and post reports
+  * RabbitMQ (the only way for workers to communicate with outside world).
+- General architecture
+  * Use Golang and python
+  * Use Bazel for build
+
+## PostDemo 1
+
+x Docker image for autograder worker [#later]
+> Extract master solution to autograder directory too
+  > Run the autograder scripts as test for master solution
+> Extract the student tests as unit tests for master solution
+> Extract autograder tests (autotests) as unit tests
+> Map the overlay scratch directory [#next]
+> Docker image for running RabbitMQ (transient) [#later]
+> Docker image for server [#later]
+> Use Bazel to extract Autograder directories [#later]
+> Test cell output [#later]
+- Use Protobuffers and GRPC [#later]
+
+## Notes
+
+Run the RabbitMQ daemon with Docker [#later]:
+
+    docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
+
+[*] https://hub.docker.com/_/rabbitmq
