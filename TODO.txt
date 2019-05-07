@@ -19,6 +19,8 @@
 
 ## PostDemo 1
 
+> Figure out how to test master solution against syntactic tests.
+> Package IPython magics into a pip package
 x Docker image for autograder worker [#later]
 > Extract master solution to autograder directory too
   > Run the autograder scripts as test for master solution
