@@ -1,4 +1,8 @@
-# Demo 1 - deadline 5/14, pre-demo 4/24
+# pre-demo 5/8
+
+> IPython magic to record submission
+
+# Demo 1 - deadline 5/14
 
 0 Server: listen to reports from RabbitMQ and serve reports.
 0 Authentication for the uploader
@@ -66,4 +70,6 @@ Run the RabbitMQ daemon with Docker [#later]:
   x Run the report generator [#next]
   * Post the report to RabbitMQ
 
-2019-05-02
+2019-05-02 working out master notebook format details
+2019-05-07 19:46 Master notebook format (2h21)
+2019-05-07 22:07 Update the assign tool.
