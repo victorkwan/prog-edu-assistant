@@ -54,33 +54,53 @@ func TestToStudent(t *testing.T) {
 			want:  []string{"## unchanged\nmore", "aaa\nbbb"},
 		},
 		{
+			name:  "TestMarkerRemoved1",
+			input: []string{"# TEST\n## unchanged\nmore", "aaa\nbbb"},
+			want:  []string{"## unchanged\nmore", "aaa\nbbb"},
+		},
+		{
+			name:  "MasterMarkerSkipped1",
+			input: []string{"# MASTER ONLY\n## should be\n skipped", "aaa\nbbb"},
+			want:  []string{"aaa\nbbb"},
+		},
+		{
+			name:  "MasterMarkerSkipped2",
+			input: []string{" # MASTER ONLY \n## should be\n skipped", "aaa\nbbb"},
+			want:  []string{"aaa\nbbb"},
+		},
+		{
+			name:  "Solution0",
+			input: []string{"%%solution\na = 1\nb = 2\nc = 3"},
+			want:  []string{"..."},
+		},
+		{
 			name:  "Solution1",
-			input: []string{"# BEGIN SOLUTION\nx = 1\n# END SOLUTION"},
+			input: []string{"%%solution\n# BEGIN SOLUTION\nx = 1\n# END SOLUTION"},
 			want:  []string{"..."},
 		},
 		{
 			name:  "Solution2",
-			input: []string{"# BEGIN SOLUTION\nx = 1\n# END SOLUTION\n# Junk"},
+			input: []string{"%%solution\n# BEGIN SOLUTION\nx = 1\n# END SOLUTION\n# Junk"},
 			want:  []string{"...\n# Junk"},
 		},
 		{
 			name:  "Solution3",
-			input: []string{"# Junk1\n# BEGIN SOLUTION\nx = 1\n# END SOLUTION\n# Junk2"},
+			input: []string{"%%solution\n# Junk1\n# BEGIN SOLUTION\nx = 1\n# END SOLUTION\n# Junk2"},
 			want:  []string{"# Junk1\n...\n# Junk2"},
 		},
 		{
 			name:  "Solution4_Indent",
-			input: []string{"  # Junk1\n  # BEGIN SOLUTION\n  x = 1\n  # END SOLUTION\n  # Junk2"},
+			input: []string{"%%solution\n  # Junk1\n  # BEGIN SOLUTION\n  x = 1\n  # END SOLUTION\n  # Junk2"},
 			want:  []string{"  # Junk1\n  ...\n  # Junk2"},
 		},
 		{
 			name:  "Solution5_IndentBroken", // Indent is matched to BEGIN SOLUTION
-			input: []string{"  # Junk1\n  # BEGIN SOLUTION\n  x = 1\n    # END SOLUTION\n    # Junk2"},
+			input: []string{"%%solution\n  # Junk1\n  # BEGIN SOLUTION\n  x = 1\n    # END SOLUTION\n    # Junk2"},
 			want:  []string{"  # Junk1\n  ...\n    # Junk2"},
 		},
 		{
 			name: "Prompt1",
-			input: []string{`
+			input: []string{`%%solution
 """ # BEGIN PROMPT
 # Your solution here
 """ # END PROMPT
@@ -89,14 +109,13 @@ func TestToStudent(t *testing.T) {
 x = 1
 # END SOLUTION
 # Junk2`},
-			want: []string{`
-# Junk1
+			want: []string{`# Junk1
 # Your solution here
 # Junk2`},
 		},
 		{
 			name: "Prompt2",
-			input: []string{`
+			input: []string{`%%solution
   """ # BEGIN PROMPT
 	# Your solution here
   """ # END PROMPT
@@ -105,8 +124,7 @@ x = 1
 	x = 1
 	# END SOLUTION
 	# Junk2`},
-			want: []string{`
-	# Junk1
+			want: []string{`	# Junk1
 	# Your solution here
 	# Junk2`},
 		},
@@ -117,7 +135,7 @@ x = 1
 		},
 		{
 			name:  "Autotest1",
-			input: []string{"# BEGIN AUTOTEST\nx = 1\n# END AUTOTEST"},
+			input: []string{"result, log = %autotest HelloTest\nx = 1"},
 			want:  []string{},
 		},
 	}
@@ -175,7 +193,8 @@ class MyTest(unittest.TestCase):
 		pass
 # END UNITTEST
 # junk`},
-			want: []string{`import submission;
+			want: []string{`import submission_source
+import submission
 import unittest;
 
 class MyTest(unittest.TestCase):

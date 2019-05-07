@@ -16,5 +16,7 @@ mkdir -p ../tmp-uploads
 # Start the autograder worker
 go run cmd/worker/worker.go --autograder_dir=../tmp-autograder --logtostderr --v=3 &
 
+trap 'kill %2; kill %1' SIGINT
+
 # Start the upload server
 go run cmd/uploadserver/main.go --logtostderr --v=3 --upload_dir=../tmp-uploads

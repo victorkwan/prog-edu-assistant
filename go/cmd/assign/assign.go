@@ -61,11 +61,6 @@ func parseCommand() error {
 	fmt.Printf("%d cells\n", len(n.Cells))
 	for _, cell := range n.Cells {
 		fmt.Printf("%s: %s\n", cell.Type, cell.Source)
-		/*
-			for name, val := range cell.Outputs {
-				fmt.Printf("%s: %s\n", name, val)
-			}
-		*/
 		fmt.Println("--")
 	}
 	fmt.Printf("nbformat %d minor %d\n", n.NBFormat, n.NBFormatMinor)

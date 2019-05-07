@@ -59,7 +59,7 @@ func parseText(v interface{}) (text string, err error) {
 		if !ok {
 			err = fmt.Errorf("cell.source is neither a list nor string but %s",
 				reflect.TypeOf(v))
-				return
+			return
 		}
 	} else {
 		var lines []string
@@ -68,7 +68,7 @@ func parseText(v interface{}) (text string, err error) {
 			if !ok {
 				err = fmt.Errorf("cell.source has not a string but %s",
 					reflect.TypeOf(s))
-					return
+				return
 			}
 			lines = append(lines, str)
 		}
@@ -232,15 +232,17 @@ var (
 	assignmentMetadataRegex = regexp.MustCompile("(?m)^[ \t]*# ASSIGNMENT METADATA")
 	exerciseMetadataRegex   = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
 	tripleBacktickedRegex   = regexp.MustCompile("(?ms)^```.*^```")
+	testMarkerRegex         = regexp.MustCompile("(?ms)^[ \t]*# TEST[\n]*")
+	solutionMagicRegex      = regexp.MustCompile("^[ \t]*%%solution[^\n]*\n")
 	solutionBeginRegex      = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
 	solutionEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END SOLUTION *")
 	promptBeginRegex        = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n")
 	promptEndRegex          = regexp.MustCompile("\n[ \t]*\"\"\" # END PROMPT *\n")
-	testRegex               = regexp.MustCompile("(?m)^[ \t]*# TEST *")
 	unittestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *\n")
 	unittestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
-	autotestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN AUTOTEST *")
-	autotestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END AUTOTEST *")
+	autotestMarkerRegex     = regexp.MustCompile("%autotest")
+	submissionMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*%%(submission|solution)")
+	masterOnlyMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*#+ MASTER ONLY[^\n]*\n?")
 )
 
 // hasMetadata detects whether the markdown block has a triple backtick-fenced block
@@ -336,12 +338,16 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 				}
 			}
 		}
+		if cell.Type == "markdown" {
+			if masterOnlyMarkerRegex.MatchString(cell.Source) {
+				// Skip # MASTER ONLY
+				return nil, nil
+			}
+		}
 		if cell.Type != "code" {
 			return &Cell{Type: cell.Type, Source: source}, nil
 		}
 		prompt := ""
-		if promptBeginRegex.MatchString(source) {
-		}
 		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
 			mend := promptEndRegex.FindStringIndex(source)
 			if mend == nil {
@@ -355,7 +361,26 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
 			glog.V(3).Infof("stripped source = %q", source)
 		}
-		if mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1); mbeg != nil {
+		if m := testMarkerRegex.FindStringIndex(source); m != nil {
+			fmt.Printf("TEST: %v\n", m)
+			fmt.Printf("source: %q\n", source)
+			// Remove the # TEST marker.
+			source = source[:m[0]] + source[m[1]:]
+			fmt.Printf("source: %q\n", source)
+		}
+		if m := solutionMagicRegex.FindStringIndex(source); m != nil {
+			// Strip the line with %%solution magic.
+			source = source[m[1]:]
+			mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1)
+			if mbeg == nil {
+				// No BEGIN/END SOLUTION markers. Just return "..."
+				return &Cell{
+					Type:     "code",
+					Metadata: exerciseMetadata,
+					Source:   "...",
+				}, nil
+			}
+			// Match BEGIN SOLUTION to END SOLUTION.
 			mend := solutionEndRegex.FindAllStringIndex(source, -1)
 			if len(mbeg) != len(mend) {
 				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
@@ -384,15 +409,20 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 				Metadata: exerciseMetadata,
 				Source:   strings.Join(outputs, ""),
 			}, nil
-		} else {
-			glog.V(3).Infof("BEGIN SOLUTION did not match")
 		}
-		// Skip any test cells.
+		// Skip # BEGIN UNITTEST, %%submission, %%solution, %autotest and # MASTER ONLY cells.
 		if unittestBeginRegex.MatchString(source) ||
-			autotestBeginRegex.MatchString(source) {
+			autotestMarkerRegex.MatchString(source) ||
+			submissionMarkerRegex.MatchString(source) ||
+			masterOnlyMarkerRegex.MatchString(source) {
+			// Skip the cell.
 			return nil, nil
 		}
-		return cell, nil
+		// Source may have been modified.
+		return &Cell{
+			Type:   "code",
+			Source: source,
+		}, nil
 	})
 	if err != nil {
 		return nil, err
@@ -492,7 +522,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				return nil, fmt.Errorf("could not detect the test name for unittest: %s", source)
 			}
 			// TODO(salikh): Implement syntax tests too based on metadata.
-			text = "import submission;\n" + text
+			text = "import submission_source\nimport submission\n" + text
 			glog.V(3).Infof("metadata: %v, exercise_id: %q", exerciseMetadata, exerciseID)
 			glog.V(3).Infof("parsed unit test: %s\n", text)
 			return &Cell{

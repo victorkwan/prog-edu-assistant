@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/prog-edu-assistant/notebook"
 	"github.com/golang/glog"
+	"github.com/google/prog-edu-assistant/notebook"
 )
 
 // Autograder encapsulates the setup of autograder scripts.
@@ -24,7 +24,7 @@ type Autograder struct {
 	// Under Dir, the first level directory names are matched to assignment_id,
 	// second level to exercise_id. In the second-level directories,
 	// python unit test files should be present.
-	Dir string
+	Dir        string
 	NSJailPath string
 }
 
@@ -110,6 +110,11 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		// TODO(salikh): Implement proper scratch management with overlayfs.
 		filename := filepath.Join(exerciseDir, "submission.py")
 		err := ioutil.WriteFile(filename, []byte(cell.Source), 0775)
+		if err != nil {
+			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
+		}
+		filename = filepath.Join(exerciseDir, "submission_source.py")
+		err = ioutil.WriteFile(filename, []byte("with open('submission.py') as f:\n  source = f.read()"), 0775)
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}

@@ -66,12 +66,11 @@ assignment belongs to.
 
 This is useful for deciding which assignment the uploaded notebook is for and
 for picking the correct autograder script to run. The metadata is provided in
-the master notebook using triple-backtick sections with regexp-friendly
-markers in YAML format (which means that the marker itself becomes a YAML
-comment and is ignored). `# ASSIGNMENT METADATA` is copied into the
-notebook-level metadata field of the student notebook, and `# EXERCISE
-METADATA` is copied into the cell level metadata of the next code cell, which
-designates it as a _solution cell_.
+the master notebook using triple-backtick sections with regexp-friendly markers
+in YAML format (which means that the marker itself becomes a YAML comment and is
+ignored). `# ASSIGNMENT METADATA` is copied into the notebook-level metadata
+field of the student notebook, and `# EXERCISE METADATA` is copied into the cell
+level metadata of the next code cell, which designates it as a _solution cell_.
 
     ```
     # ASSIGNMENT METADATA
@@ -84,45 +83,52 @@ designates it as a _solution cell_.
     ```
 
 The solution cell in the master notebook should contain the master solution,
-marked with `BEGIN SOLUTION` and `END SOLUTION` markers:
+marked with IPython magic `%%solution`. If there is a pair of `# BEGIN SOLUTION`
+and `# END SOLUTION` markers, only that part will be removed.
 
-    # BEGIN SOLUTION
-		PI = 3.14
-    # END SOLUTION
+    %%solution
+    PI = 3.14
+
+    %%solution
+    def pi():
+      # BEGIN SOLUTION
+      return 3.14
+      # END SOLUTION
 
 The master solution will be replaced with `...` in the student notebook. If a
-different replacement is desired, `BEGIN PROMPT` and `END PROMPT` markers may be used _before_ the SOLUTION block:
+different replacement is desired, `BEGIN PROMPT` and `END PROMPT` markers may be
+used _before_ the SOLUTION block:
 
     """ # BEGIN PROMPT
     # Define the constant PI here.
-		pass
-		""" # END PROMPT
+    pass
+    """ # END PROMPT
     # BEGIN SOLUTION
-		PI = 3.14
+    PI = 3.14
     # END SOLUTION
 
 The cells that contain student-oriented tests should be marked with `TEST`.
 These typically using Python's `assert` builtin.
 
-		# TEST
-		assert(3.1 < PI && PI < 3.2)
+    # TEST
+    assert(3.1 < PI && PI < 3.2)
 
-TODO(salikh): Remove the `# TEST` marker in student notebook.
+The marker `# TEST` is removed when generating the student notebook.
 
-TODO(salikh): Automatically extract `# TEST` cells as unit tests for the
-master notebook.
+TODO(salikh): Automatically extract `# TEST` cells as unit tests for the master
+notebook.
 
 The cells that are autograder scripts should be structured as standard Python
 unit tests using the `unittest` module. They need to have markers `BEGIN
 UNITTEST` and `END UNITTEST`. Only the lines between the markers are extracted
-into autograder scripts.  The preamble before `BEGIN UNITTEST` is useful to
-set up the environment in a manner compatible with autograder environment,
-where 'import submission' is prepended.  In the notebook the recommended way
-is to use ad-hoc objects:
+into autograder scripts. The preamble before `BEGIN UNITTEST` is useful to set
+up the environment in a manner compatible with autograder environment, where
+'import submission' is prepended. In the notebook the recommended way is to use
+ad-hoc objects:
 
     from types import SimpleNamespace
     submission = SimpleNamespace(PI=PI)
-	
+
 The part of the cell after the `END UNITTEST` marker is also not written to
 autograder scripts. It is useful to run the tests in the notebook inline, e.g.
 
@@ -130,8 +136,8 @@ autograder scripts. It is useful to run the tests in the notebook inline, e.g.
     import io
     suite = unittest.TestLoader().loadTestsFromTestCase(HelloOutputTest)
     errors = io.StringIO()
-		# TODO(salikh): Move SummaryTestResult into a library and make it installable
-		# via pip.
+        # TODO(salikh): Move SummaryTestResult into a library and make it installable
+        # via pip.
     result = unittest.TextTestRunner(verbosity=4,stream=errors, resultclass=SummaryTestResult).run(suite)
     # Optional.\n",
     #print(errors.getvalue())
@@ -145,20 +151,20 @@ NOTE: This is a proposed format that is subject to discussion and change.
 
 Autograder tests are the tests that can be run in three environments:
 
-1. During the assignment authoring in the master Jupyter notebook,
-   to test whether the unit tests are catching the expected types of problems
-	 correctly.
-2. In the automated build system, to check the consistency of the master
-   assignment notebooks. This mostly runs the same kind of tests as the
-	 master notebook, but in an automated manner.
-3. In the autograder worker, against student submissions, to determine
-   the grading data.
+1.  During the assignment authoring in the master Jupyter notebook, to test
+    whether the unit tests are catching the expected types of problems
+    correctly.
+2.  In the automated build system, to check the consistency of the master
+    assignment notebooks. This mostly runs the same kind of tests as the master
+    notebook, but in an automated manner.
+3.  In the autograder worker, against student submissions, to determine the
+    grading data.
 
 The autograder scripts have two representations: the directory format and the
 notebook format. The notebook format is the authoritative source and is
-contained in the master notebook. The directory format is produced at build
-time and is included into the autograder image, as well for automated testing
-of the notebooks.
+contained in the master notebook. The directory format is produced at build time
+and is included into the autograder image, as well for automated testing of the
+notebooks.
 
 ### Autograder tests in master notebook
 
@@ -168,11 +174,11 @@ submission. A subsequent cells may use %autotest line magic to obtain grading
 results from a specific unit test and subsequently check them with assert
 statements.
 
-		%%submission
-		PI = 3.5	
+        %%submission
+        PI = 3.5
 
-		result = %autotest TestPi
-		assert(result["TestPi.test_between_3_and_4"] == false)
+        result = %autotest TestPi
+        assert(result["TestPi.test_between_3_and_4"] == false)
 
 ### Autograder test directories (in autograder worker)
 
@@ -182,11 +188,10 @@ submission or the master solution will be written into a `submission.py` file
 into the same directory (actually directory will be constructed using
 overlayfs).
 
-Extraction of the student solution and matching of the solution against
-unit tests is done through metadata tags `assignment_id` and `exercise_id`.
-Following the linear execution model of Jupyter notebook, all unit tests
-defined in the notebook are implicitly assumed to test the last defined
-exercise.
+Extraction of the student solution and matching of the solution against unit
+tests is done through metadata tags `assignment_id` and `exercise_id`. Following
+the linear execution model of Jupyter notebook, all unit tests defined in the
+notebook are implicitly assumed to test the last defined exercise.
 
 The exercise directory may also contain a special script `report.py` to to
 convert a vector of test outcomes into a human-readable report.
