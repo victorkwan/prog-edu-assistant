@@ -229,21 +229,22 @@ func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, er
 // TODO(salikh): Implement smarter replacement strategies similar to jassign, e.g.
 // x = 1 # SOLUTION   ===>   x = ...
 var (
-	assignmentMetadataRegex = regexp.MustCompile("(?m)^[ \t]*# ASSIGNMENT METADATA")
-	exerciseMetadataRegex   = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
-	tripleBacktickedRegex   = regexp.MustCompile("(?ms)^```.*^```")
-	testMarkerRegex         = regexp.MustCompile("(?ms)^[ \t]*# TEST[\n]*")
-	solutionMagicRegex      = regexp.MustCompile("^[ \t]*%%solution[^\n]*\n")
-	solutionBeginRegex      = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
-	solutionEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END SOLUTION *")
-	promptBeginRegex        = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n")
-	promptEndRegex          = regexp.MustCompile("\n[ \t]*\"\"\" # END PROMPT *\n")
-	unittestBeginRegex      = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *\n")
-	unittestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
-	autotestMarkerRegex     = regexp.MustCompile("%autotest")
-	submissionMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*%%(submission|solution)")
-	templateOrReportMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*%%(template|report)")
-	masterOnlyMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*#+ MASTER ONLY[^\n]*\n?")
+	assignmentMetadataRegex     = regexp.MustCompile("(?m)^[ \t]*# ASSIGNMENT METADATA")
+	exerciseMetadataRegex       = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
+	tripleBacktickedRegex       = regexp.MustCompile("(?ms)^```.*^```")
+	testMarkerRegex             = regexp.MustCompile("(?ms)^[ \t]*# TEST[\n]*")
+	solutionMagicRegex          = regexp.MustCompile("^[ \t]*%%solution[^\n]*\n")
+	solutionBeginRegex          = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
+	solutionEndRegex            = regexp.MustCompile("(?m)^[ \t]*# END SOLUTION *")
+	promptBeginRegex            = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n")
+	promptEndRegex              = regexp.MustCompile("\n[ \t]*\"\"\" # END PROMPT *\n")
+	unittestBeginRegex          = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *\n")
+	unittestEndRegex            = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
+	autotestMarkerRegex         = regexp.MustCompile("%autotest")
+	submissionMarkerRegex       = regexp.MustCompile("(?ms)^[ \t]*%%(submission|solution)")
+	templateOrReportMarkerRegex = regexp.MustCompile("(?ms)^[ \t]*%%(template|report)")
+	masterOnlyMarkerRegex       = regexp.MustCompile("(?ms)^[ \t]*#+ MASTER ONLY[^\n]*\n?")
+	importRegex                 = regexp.MustCompile("(?m)^[ \t]*#[ \t]*import[ \t]+([a-z][a-z0-9_]*)[ \t]*$")
 )
 
 // hasMetadata detects whether the markdown block has a triple backtick-fenced block
@@ -508,20 +509,18 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				return nil, err
 			}
 			filename := ""
-			if m := testClassRegex.FindStringSubmatch(source); m != nil {
-				basename := m[1]
-				if strings.HasSuffix(basename, "Test") {
-					basename = basename[:len(basename)-4]
-				} else if strings.HasPrefix(basename, "Test") {
-					basename = basename[4:]
-				}
-				filename = basename + "_test.py"
+			if m := testClassRegex.FindStringSubmatch(text); m != nil {
+				// HelloTest will be stored into HelloTest.py.
+				filename = m[1] + ".py"
 			}
 			if filename == "" {
 				return nil, fmt.Errorf("could not detect the test name for unittest: %s", source)
 			}
-			// TODO(salikh): Implement syntax tests too based on metadata.
-			text = "import submission_source\nimport submission\n" + text
+			var imports []string
+			for _, m := range importRegex.FindAllStringSubmatch(text, -1) {
+				imports = append(imports, "import "+m[1]+"\n")
+			}
+			text = strings.Join(imports, "") + text
 			glog.V(3).Infof("metadata: %v, exercise_id: %q", exerciseMetadata, exerciseID)
 			glog.V(3).Infof("parsed unit test: %s\n", text)
 			return &Cell{

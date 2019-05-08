@@ -141,7 +141,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	return b, nil
 }
 
-// nsjail -Mo --time_limit 2 --max_cpus 1 --rlimit_as 700 -E LANG=en_US.UTF-8 --disable_proc --chroot / --cwd $PWD --user nobody --group nogroup --iface_no_lo -- /usr/bin/python3 -m unittest discover -v -p '*_test.py'
+// nsjail -Mo --time_limit 2 --max_cpus 1 --rlimit_as 700 -E LANG=en_US.UTF-8 --disable_proc --chroot / --cwd $PWD --user nobody --group nogroup --iface_no_lo -- /usr/bin/python3 -m unittest discover -v -p '*Test.py'
 
 var outcomeRegex = regexp.MustCompile(`(test[a-zA-Z0-9_]*) \(([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]*)\) \.\.\. (ok|FAIL|ERROR)`)
 
@@ -157,7 +157,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 	outcomes := make(map[string]bool)
 	for _, fs := range fss {
 		filename := fs.Name()
-		if !strings.HasSuffix(filename, "_test.py") {
+		if !strings.HasSuffix(filename, "Test.py") {
 			continue
 		}
 		cmd := exec.Command(ag.NSJailPath, "-Mo",
