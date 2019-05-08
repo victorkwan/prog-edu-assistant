@@ -1,15 +1,14 @@
 # pre-demo 5/8
 
-* IPython magic to record submission
-0 iPyhton magic to define template and to render report
-> Generate report in the autograder worker
+> Slides
+> Live demo script
 
 # Demo 1 - deadline 5/14
 
-0 Server: listen to reports from RabbitMQ and serve reports.
-0 Authentication for the uploader
+> Authentication for the uploader tool
 > Annotate OOP assignment in master notebook format [#next]
-> End-to-end autograder demo for OOP assignment
+> End-to-end autograder demo script for OOP assignment
+> Deployment via Docker Compose
 
 ## Demo 1 decisions
 
@@ -76,3 +75,7 @@ Run the RabbitMQ daemon with Docker [#later]:
 2019-05-07 19:46 Master notebook format (2h21)
 2019-05-07 22:07 Update the assign tool.
 2019-05-08 09:57 Generate report in the autograder worker.
+2019-05-08 04:00 Template and report magics. Do we need magics there at all?
+2019-05-08 11:50 Report handler in the server.
+2019-05-08 11:51 Demo 1: drafted.
+
