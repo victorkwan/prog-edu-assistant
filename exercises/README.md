@@ -131,19 +131,10 @@ ad-hoc objects:
 
 The part of the cell after the `END UNITTEST` marker is also not written to
 autograder scripts. It is useful to run the tests in the notebook inline, e.g.
+using `%autotest` magic.
 
-    import sys
-    import io
-    suite = unittest.TestLoader().loadTestsFromTestCase(HelloOutputTest)
-    errors = io.StringIO()
-        # TODO(salikh): Move SummaryTestResult into a library and make it installable
-        # via pip.
-    result = unittest.TextTestRunner(verbosity=4,stream=errors, resultclass=SummaryTestResult).run(suite)
-    # Optional.\n",
-    #print(errors.getvalue())
-
-    # TODO: Add some assertion on detected outcomes.
-    print(result.results)
+TODO(salikh): Magic does not seem to be necessary, just a library function would
+work fine.
 
 ## Structure of autograder scripts directories
 
@@ -178,7 +169,7 @@ statements.
         PI = 3.5
 
         result = %autotest TestPi
-        assert(result["TestPi.test_between_3_and_4"] == false)
+        assert(result.results["TestPi.test_between_3_and_4"] == false)
 
 ### Autograder test directories (in autograder worker)
 
