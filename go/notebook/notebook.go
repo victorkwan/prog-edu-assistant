@@ -244,7 +244,9 @@ var (
 	submissionMarkerRegex       = regexp.MustCompile("(?ms)^[ \t]*%%(submission|solution)")
 	templateOrReportMarkerRegex = regexp.MustCompile("(?ms)^[ \t]*%%(template|report)")
 	masterOnlyMarkerRegex       = regexp.MustCompile("(?ms)^[ \t]*#+ MASTER ONLY[^\n]*\n?")
-	importRegex                 = regexp.MustCompile("(?m)^[ \t]*#[ \t]*import[ \t]+([a-z][a-z0-9_]*)[ \t]*$")
+	importRegex                 = regexp.MustCompile("(?m)^[ \t]*#[ \t]*import[ \t]+([a-zA-Z][a-zA-Z0-9_]*)[ \t]*$")
+	templateRegex               = regexp.MustCompile("(?m)^[ \t]*%%template(?:[ \t]+([a-zA-Z][a-zA-Z0-9_]*))\n")
+	reportRegex                 = regexp.MustCompile("(?m)^[ \t]*%%report.*\n *([a-zA-Z][a-zA-Z0-9_]*)$")
 )
 
 // hasMetadata detects whether the markdown block has a triple backtick-fenced block
@@ -527,6 +529,18 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
 				Source:   text,
+			}, nil
+		}
+		if m := templateRegex.FindStringSubmatchIndex(source); m != nil {
+			// Extract the template name.
+			name := source[m[2]:m[3]]
+			filename := name + ".py"
+			// Cut the magic string.
+			source = source[m[1]:]
+			return &Cell{
+				Type:     "code",
+				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
+				Source:   `"""` + source + `"""`,
 			}, nil
 		}
 		// Do not emit other code cells.
