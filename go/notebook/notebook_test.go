@@ -193,9 +193,55 @@ class MyTest(unittest.TestCase):
 		pass
 # END UNITTEST
 # junk`},
+			want: []string{`import unittest;
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+`},
+		},
+		{
+			name: "Extracted2",
+			input: []string{`
+# junk
+# BEGIN UNITTEST
+# import submission_source
+import unittest
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+# END UNITTEST
+# junk`},
 			want: []string{`import submission_source
-import submission
-import unittest;
+# import submission_source
+import unittest
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+`},
+		},
+		{
+			name: "Extracted3",
+			input: []string{`
+# junk
+# BEGIN UNITTEST
+import unittest
+
+#  import   submission  
+
+
+class MyTest(unittest.TestCase):
+	def test1(self):
+		pass
+# END UNITTEST
+# junk`},
+			want: []string{`import submission
+import unittest
+
+#  import   submission  
+
 
 class MyTest(unittest.TestCase):
 	def test1(self):
