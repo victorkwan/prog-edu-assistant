@@ -177,7 +177,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); !ok {
-				return nil, fmt.Errorf("error running unit test command %q: %s", cmd, err)
+				return nil, fmt.Errorf("error running unit test command %q %q: %s", cmd.Path, cmd.Args, err)
 			}
 			// Overall status was non-ok.
 			outcomes[filename] = false

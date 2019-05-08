@@ -98,7 +98,7 @@ func autograderCommand() error {
 	}
 	assignmentID := n.Metadata["assignment_id"].(string)
 	if *output == "" {
-		fmt.Println("## Dry run mode. Would generate the following files:\n")
+		fmt.Print("## Dry run mode. Would generate the following files:\n\n")
 		for _, cell := range n.Cells {
 			exerciseID := cell.Metadata["exercise_id"].(string)
 			filename := cell.Metadata["filename"].(string)

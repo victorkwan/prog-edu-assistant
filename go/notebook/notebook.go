@@ -242,6 +242,7 @@ var (
 	unittestEndRegex        = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
 	autotestMarkerRegex     = regexp.MustCompile("%autotest")
 	submissionMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*%%(submission|solution)")
+	templateOrReportMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*%%(template|report)")
 	masterOnlyMarkerRegex   = regexp.MustCompile("(?ms)^[ \t]*#+ MASTER ONLY[^\n]*\n?")
 )
 
@@ -362,11 +363,8 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			glog.V(3).Infof("stripped source = %q", source)
 		}
 		if m := testMarkerRegex.FindStringIndex(source); m != nil {
-			fmt.Printf("TEST: %v\n", m)
-			fmt.Printf("source: %q\n", source)
 			// Remove the # TEST marker.
 			source = source[:m[0]] + source[m[1]:]
-			fmt.Printf("source: %q\n", source)
 		}
 		if m := solutionMagicRegex.FindStringIndex(source); m != nil {
 			// Strip the line with %%solution magic.
@@ -414,6 +412,7 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 		if unittestBeginRegex.MatchString(source) ||
 			autotestMarkerRegex.MatchString(source) ||
 			submissionMarkerRegex.MatchString(source) ||
+			templateOrReportMarkerRegex.MatchString(source) ||
 			masterOnlyMarkerRegex.MatchString(source) {
 			// Skip the cell.
 			return nil, nil

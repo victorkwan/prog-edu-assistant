@@ -9,13 +9,14 @@ set -ve
 #sudo /etc/init.d/rabbitmq-server start
 
 # Start Jupyter notebook server
-jupyter notebook &
+pgrep jupyter &>/dev/null || jupyter notebook &
 
 cd go
 mkdir -p ../tmp-uploads
 # Start the autograder worker
 go run cmd/worker/worker.go --autograder_dir=../tmp-autograder --logtostderr --v=3 &
 
+# Stop the processes we started on Ctrl+C
 trap 'kill %2; kill %1' SIGINT
 
 # Start the upload server

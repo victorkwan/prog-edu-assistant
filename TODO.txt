@@ -1,6 +1,8 @@
 # pre-demo 5/8
 
-> IPython magic to record submission
+* IPython magic to record submission
+0 iPyhton magic to define template and to render report
+> Generate report in the autograder worker
 
 # Demo 1 - deadline 5/14
 
@@ -73,3 +75,4 @@ Run the RabbitMQ daemon with Docker [#later]:
 2019-05-02 working out master notebook format details
 2019-05-07 19:46 Master notebook format (2h21)
 2019-05-07 22:07 Update the assign tool.
+2019-05-08 09:57 Generate report in the autograder worker.

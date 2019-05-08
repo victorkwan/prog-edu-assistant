@@ -88,7 +88,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	}
 	f, _, err := req.FormFile("notebook")
 	if err != nil {
-		return fmt.Errorf("no notebook file in the form: %s\nRequest %s", err, req)
+		return fmt.Errorf("no notebook file in the form: %s\nRequest %s", err, req.URL)
 	}
 	defer f.Close()
 	b, err := ioutil.ReadAll(f)
