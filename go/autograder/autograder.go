@@ -4,6 +4,7 @@
 package autograder
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -85,6 +86,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 	allOutcomes := make(map[string]bool)
+	allReports := make(map[string]string)
 	for _, cell := range n.Cells {
 		if cell.Metadata == nil {
 			continue
@@ -114,7 +116,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
 		filename = filepath.Join(exerciseDir, "submission_source.py")
-		err = ioutil.WriteFile(filename, []byte("with open('submission.py') as f:\n  source = f.read()"), 0775)
+		err = ioutil.WriteFile(filename, []byte(`source = """`+cell.Source+`"""`), 0775)
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
@@ -122,6 +124,11 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error running unit tests in %q: %s", exerciseDir, err)
 		}
+		report, err := ag.RenderReports(exerciseDir, outcomes)
+		if err != nil {
+			return nil, err
+		}
+		allReports[exerciseID] = string(report)
 		for k, v := range outcomes {
 			_, ok := allOutcomes[k]
 			if ok {
@@ -134,6 +141,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	result["assignment_id"] = assignmentID
 	result["submission_id"] = submissionID
 	result["outcomes"] = allOutcomes
+	result["reports"] = allReports
 	b, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("error serializing report json: %s", err)
@@ -206,4 +214,44 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 		}
 	}
 	return outcomes, nil
+}
+
+func (ag *Autograder) RenderReports(dir string, outcomes map[string]bool) ([]byte, error) {
+	err := os.Chdir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("error on chdir %q: %s", dir, err)
+	}
+	fss, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("error on listing %q: %s", dir, err)
+	}
+	outcomesJson, err := json.Marshal(outcomes)
+	if err != nil {
+		return nil, err
+	}
+	var reports [][]byte
+	for _, fs := range fss {
+		filename := fs.Name()
+		if !strings.HasSuffix(filename, "_template.py") {
+			continue
+		}
+		cmd := exec.Command("python", filename)
+		glog.V(2).Infof("Starting command %s %q", cmd.Path, cmd.Args)
+		cmdIn, err := cmd.StdinPipe()
+		if err != nil {
+			return nil, err
+		}
+		go func() {
+			glog.V(3).Infof("Input: %s", string(outcomesJson))
+			cmdIn.Write(outcomesJson)
+			cmdIn.Close()
+		}()
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return nil, err
+		}
+		glog.V(3).Infof("Output: %s", string(output))
+		reports = append(reports, output)
+	}
+	return bytes.Join(reports, nil), nil
 }

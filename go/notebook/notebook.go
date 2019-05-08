@@ -540,7 +540,25 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			return &Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
-				Source:   `"""` + source + `"""`,
+				Source: `
+from jinja2 import Template
+import json
+import sys
+import submission_source
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
+
+template = """` + source + `"""
+
+if __name__ == '__main__':
+  input = sys.stdin.read()
+  results = json.loads(input)
+  highlighted_source = highlight(submission_source.source, PythonLexer(),
+                                 HtmlFormatter())
+  tmpl = Template(template)
+  sys.stdout.write(tmpl.render(results=results, source=highlighted_source))
+`,
 			}, nil
 		}
 		// Do not emit other code cells.
