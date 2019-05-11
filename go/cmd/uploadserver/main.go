@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/prog-edu-assistant/uploadserver"
 	"github.com/google/prog-edu-assistant/queue"
 )
@@ -38,13 +40,27 @@ func main() {
 }
 
 func run() error {
-	q, err := queue.Open(*queueSpec)
-	if err != nil {
-		return fmt.Errorf("error opening queue %q: %s", *queueSpec, err)
-	}
-	ch, err := q.Receive(*reportQueue)
-	if err != nil {
-		return fmt.Errorf("error receiving on queue %q: %s", *autograderQueue, err)
+	delay := 500*time.Millisecond
+	retryUntil := time.Now().Add(60*time.Second)
+	var q *queue.Channel
+	var ch <-chan []byte
+	for {
+		var err error
+		q, err = queue.Open(*queueSpec)
+		if err != nil {
+			if time.Now().After(retryUntil) {
+				return fmt.Errorf("error opening queue %q: %s", *queueSpec, err)
+			}
+			glog.V(1).Infof("error opening queue %q: %s, retrying in %s", *queueSpec, err, delay)
+			time.Sleep(delay)
+			delay = delay*2
+			continue
+		}
+		ch, err = q.Receive(*reportQueue)
+		if err != nil {
+			return fmt.Errorf("error receiving on queue %q: %s", *autograderQueue, err)
+		}
+		break
 	}
 	s := uploadserver.New(uploadserver.Options{
 		UploadDir:   *uploadDir,
