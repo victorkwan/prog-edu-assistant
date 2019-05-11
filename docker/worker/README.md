@@ -31,4 +31,5 @@ vector, and then generate the test report based on the input
 submission and the outcome vector.
 
 To minimize coupling of worker with the rest of the system, the worker
-will the same RabbitMQ to post the report.
+uses the same RabbitMQ to post the report on to the queue "reports".
+The report is posted in JSON format, with snippets of HTML inside.
