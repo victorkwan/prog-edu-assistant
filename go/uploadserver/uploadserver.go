@@ -213,6 +213,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	glog.V(5).Infof("Uploaded: %s", string(b))
 	fmt.Fprintf(w, "/report/"+submissionID)
 	return nil
 }
@@ -224,6 +225,7 @@ func (s *Server) scheduleCheck(content []byte) error {
 func (s *Server) ListenForReports(ch <-chan []byte) {
 	for b := range ch {
 		glog.V(3).Infof("Received %d byte report", len(b))
+		glog.V(5).Infof("Received: %s", string(b))
 		data := make(map[string]interface{})
 		err := json.Unmarshal(b, &data)
 		if err != nil {

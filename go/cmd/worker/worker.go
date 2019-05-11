@@ -56,14 +56,16 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("error receiving on queue %q: %s", *autograderQueue, err)
 	}
+	glog.Infof("Listening on the queue %q", *autograderQueue)
 	// Enter the main work loop
 	for b := range ch {
+		glog.V(5).Infof("Received %d bytes: %s", len(b), string(b))
 		report, err := ag.Grade(b)
 		if err != nil {
 			// TODO(salikh): Add remote logging and monitoring.
 			log.Println(err)
 		}
-		glog.Infof("Grade result: %s", string(report))
+		glog.V(3).Infof("Grade result %d bytes: %s", len(report), string(report))
 		err = q.Post(*reportQueue, report)
 		if err != nil {
 			log.Println(err)

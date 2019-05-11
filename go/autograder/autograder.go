@@ -236,19 +236,23 @@ func (ag *Autograder) RenderReports(dir string, outcomes map[string]bool) ([]byt
 			continue
 		}
 		cmd := exec.Command("python", filename)
-		glog.V(2).Infof("Starting command %s %q", cmd.Path, cmd.Args)
+		glog.V(3).Infof("Starting command %s %q with input %q", cmd.Path, cmd.Args, string(outcomesJson))
 		cmdIn, err := cmd.StdinPipe()
 		if err != nil {
 			return nil, err
 		}
 		go func() {
-			glog.V(3).Infof("Input: %s", string(outcomesJson))
 			cmdIn.Write(outcomesJson)
 			cmdIn.Close()
 		}()
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return nil, err
+			reports = append(reports, []byte(fmt.Sprintf(`
+<h2 style='color: red'>Reporter error</h2>
+<pre>%s</pre>`, err.Error())))
+			glog.Errorf("Reporter error: %s", err)
+			reports = append(reports, output)
+			continue
 		}
 		glog.V(3).Infof("Output: %s", string(output))
 		reports = append(reports, output)
