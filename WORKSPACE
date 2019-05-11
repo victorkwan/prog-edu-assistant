@@ -55,3 +55,15 @@ go_repository(
     commit = "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
     importpath = "github.com/golang/glog",
 )
+
+go_repository(
+    name = "com_github_google_uuid",
+    commit = "v1.1.1",
+    importpath = "github.com/google/uuid",
+)
+
+go_repository(
+    name = "com_github_streadway_amqp",
+    commit = "75d898a42a940fbc854dfd1a4199eabdc00cf024",
+    importpath = "github.com/streadway/amqp",
+)
