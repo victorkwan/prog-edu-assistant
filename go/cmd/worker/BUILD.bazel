@@ -18,3 +18,23 @@ go_binary(
         "-static",
     ],
 )
+
+load("@io_bazel_rules_docker//go:image.bzl", "go_image")
+
+go_image(
+    name = "docker",
+    srcs = ["worker.go"],
+    importpath = "github.com/google/prog-edu-assistant/cmd/worker",
+    deps = [
+        "@com_github_golang_glog//:go_default_library",
+	"//go/queue",
+        "//go/autograder",
+    ],
+    gc_linkopts = [
+        "-linkmode",
+        "external",
+        "-extldflags",
+        "-static",
+    ],
+    base = "//exercises:autograder_image",
+)

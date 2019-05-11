@@ -1,0 +1,18 @@
+version: '2'
+services:
+  rabbitmq:
+    image: rabbitmq
+  web:
+    ports: 
+      - "8000:8000"
+    #build: server
+    image: server:latest
+    entrypoint: ['/usr/local/bin/uploadserver', '-upload_dir', '/tmp/uploads', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/']
+    #image: bazel/go/cmd/uploadserver:docker
+    #entrypoint: ['/app/go/cmd/uploadserver/docker.binary.runfiles/__main__/go/cmd/uploadserver/linux_amd64_stripped/docker.binary', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-disable_cors', '-upload_dir', '/tmp']
+  worker:
+    #build: worker
+    image: worker:latest
+    entrypoint: ['/usr/local/bin/worker', '-autograder_dir', '/autograder', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/']
+    #image: bazel/go/cmd/worker:docker
+    #entrypoint: ['/app/go/cmd/worker/docker.binary.runfiles/__main__/go/cmd/worker/linux_amd64_stripped/docker.binary', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-autograder_dir', '/autograder']

@@ -24,3 +24,32 @@ genrule(
         "//go/cmd/assign",
     ],
 )
+
+load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "autograder_tar",
+    srcs = [":helloworld-en-autograder"],
+    package_dir = "autograder",
+    strip_prefix = "helloworld-en-autograder",
+)
+
+#pkg_tar(
+#    name = "nsjail_tar",
+#    srcs = [":nsjail"],
+#    package_dir = "usr/local/bin",
+#)
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_push", "container_image")
+
+container_image(
+    name = "autograder_image",
+    #base = "@go_image_base//image",
+    #base = "@alpine_with_bash//image",
+    base = "@debian_testing//image",
+    tars = [
+	":autograder_tar",
+	#":nsjail_tar"
+    ],
+    visibility = ["//visibility:public"],
+)

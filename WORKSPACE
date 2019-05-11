@@ -16,8 +16,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "86ae934bd4c43b99893fc64be9d9fc684b81461581df7ea8fc291c816f5ee8c5",
-    urls = ["https://github.com/bazelbuild/rules_go/releases/download/0.18.3/rules_go-0.18.3.tar.gz"],
+    urls = ["https://github.com/bazelbuild/rules_go/releases/download/0.18.4/rules_go-0.18.4.tar.gz"],
+    sha256 = "3743a20704efc319070957c45e24ae4626a05ba4b1d6a8961e87520296f1b676",
 )
 
 http_archive(
@@ -29,7 +29,6 @@ http_archive(
 load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")
 
 go_rules_dependencies()
-
 go_register_toolchains()
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
@@ -66,4 +65,40 @@ go_repository(
     name = "com_github_streadway_amqp",
     commit = "75d898a42a940fbc854dfd1a4199eabdc00cf024",
     importpath = "github.com/streadway/amqp",
+)
+
+http_archive(
+    name = "io_bazel_rules_docker",
+    sha256 = "5dcd5820604c5b7e7c5f7db6e2b0cd1cf59eb0a30a0076fe3a4b86198365479a",
+    strip_prefix = "rules_docker-21c19afed2bfbbee7e266bcbef98d70df33670d9",
+    urls = ["https://github.com/bazelbuild/rules_docker/archive/21c19afed2bfbbee7e266bcbef98d70df33670d9.tar.gz"],
+)
+
+load(
+    "@io_bazel_rules_docker//repositories:repositories.bzl",
+    container_repositories = "repositories",
+)
+
+load(
+    "@io_bazel_rules_docker//go:image.bzl",
+    _go_image_repos = "repositories",
+)
+
+container_repositories()
+_go_image_repos()
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
+
+container_pull(
+    name = "alpine_with_bash",
+    registry = "gcr.io",
+    repository = "google-containers/alpine-with-bash",
+    tag = "1.0",
+)
+
+container_pull(
+    name = "debian_testing",
+    registry = "index.docker.io",
+    repository = "library/debian",
+    tag = "testing",
 )

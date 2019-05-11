@@ -24,9 +24,9 @@ RUN apt-get install -y \
     libprotobuf17  libnl-route-3-200 \
     freetype* bash \
   && ln -s /usr/bin/pip3 /usr/bin/pip \
-  && ln -sf /usr/bin/python3 /usr/bin/python \
-  && pip install --no-cache-dir \
-    six arrow scikit-learn pandas numpy scikit-image
+  && ln -sf /usr/bin/python3 /usr/bin/python
+RUN pip install --no-cache-dir \
+    six arrow scikit-learn pandas numpy scikit-image Jinja2 pygments
 
 # Build nsjail
 RUN git clone https://github.com/google/nsjail.git /root/nsjail \
