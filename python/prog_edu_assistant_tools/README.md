@@ -18,14 +18,19 @@ in every master notebook.
 
 ## How to install this package locally
 
-    pip install dist/prog_edu_assistant_notebook_tools-0.1-py3-none-any.whl
+    pip install dist/prog_edu_assistant_tools-0.1-py3-none-any.whl
 
 If you are a developer and want to reinstall the package, use the following:
 
-    pip install --ignore-installed dist/prog_edu_assistant_notebook_tools-0.1-py3-none-any.whl
+    pip install --ignore-installed dist/prog_edu_assistant_tools-0.1-py3-none-any.whl
 
 ## How to use this package in master notebooks.
 
 Here are some useful snippets for your master assignment notebooks:
 
     from prog_edu_assistant_tools.summary_test_result import SummaryTestResult
+    from prog_edu_assistant_tools.magics import autotest, report
+
+    # Loads %%solution, %%submission, %%template
+    %load_ext prog_edu_assistant_tools.magics
+

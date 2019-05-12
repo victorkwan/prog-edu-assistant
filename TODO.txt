@@ -24,7 +24,7 @@
 
 ## PostDemo 1
 
-> Create PIP library for notebook magics
+* Create PIP library for notebook magics
 > Define bazel rule for notebooks
 * Build worker and server with Bazel
 0 Build docker images with Bazel
@@ -83,3 +83,4 @@ Run the RabbitMQ daemon with Docker [#later]:
 2019-05-08 11:50 Report handler in the server.
 2019-05-08 11:51 Demo 1: drafted.
 2019-05-12 00:07 Work on docker images/compose.
+2019-05-12 22:45 converted magics and snippets into a pip library.
