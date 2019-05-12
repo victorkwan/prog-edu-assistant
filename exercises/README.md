@@ -27,6 +27,14 @@ To start the Jupyter notebook run command
 
     jupyter notebook
 
+There are two more necessary pieces to install:
+
+*  Some tools (utility functions and IPython magics) for using in master notebooks,
+   see [python/prog_edu_assistant_tools/README.md]
+
+*  Jupyter notebook extension for submitting student notebooks,
+   see [nbextensions/upload_it/README.md]
+
 ## Structure of the programming assignment notebooks
 
 Each programming assignment resides in a separate master Jupyter notebook. At
