@@ -192,6 +192,9 @@ convert a vector of test outcomes into a human-readable report.
 *   `helloworld-en-master.ipynb` --- an example master assignment notebook to
     demonstrate the syntax.
 
+*   `oop-en-master.ipynb` --- master assignment notebook about Object-oriented
+    programming.
+
 ## Request for contributions
 
 Please add more exercises to this directory!

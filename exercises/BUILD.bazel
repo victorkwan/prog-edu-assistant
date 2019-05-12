@@ -14,7 +14,7 @@ genrule(
 )
 
 genrule(
-    name = "helloworld-en-autograder",
+    name = "helloworld-en-autograder-dir",
     srcs = [
         "helloworld-en-master.ipynb",
     ],
@@ -25,13 +25,44 @@ genrule(
     ],
 )
 
+genrule(
+    name = "oop-en-student",
+    srcs = [
+        "oop-en-master.ipynb",
+    ],
+    outs = ["oop-en-student.ipynb"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
+    name = "oop-en-autograder-dir",
+    srcs = [
+        "oop-en-master.ipynb",
+    ],
+    outs = ["oop-en-autograder"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=autograder""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
 load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
 
 pkg_tar(
-    name = "autograder_tar",
+    name = "helloworld-en-autograder_tar",
     srcs = [":helloworld-en-autograder"],
     package_dir = "autograder",
     strip_prefix = "helloworld-en-autograder",
+)
+
+pkg_tar(
+    name = "oop-en-autograder_tar",
+    srcs = [":oop-en-autograder"],
+    package_dir = "autograder",
+    strip_prefix = "oop-en-autograder",
 )
 
 #pkg_tar(
@@ -48,7 +79,8 @@ container_image(
     #base = "@alpine_with_bash//image",
     base = "@debian_testing//image",
     tars = [
-	":autograder_tar",
+	":helloworld-en-autograder_tar",
+	":oop-en-autograder_tar",
 	#":nsjail_tar"
     ],
     visibility = ["//visibility:public"],

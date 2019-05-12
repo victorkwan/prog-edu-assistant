@@ -231,7 +231,7 @@ func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, er
 var (
 	assignmentMetadataRegex     = regexp.MustCompile("(?m)^[ \t]*# ASSIGNMENT METADATA")
 	exerciseMetadataRegex       = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
-	tripleBacktickedRegex       = regexp.MustCompile("(?ms)^```.*^```")
+	tripleBacktickedRegex       = regexp.MustCompile("(?ms)^```([^`]|`[^`]|``[^`])*^```")
 	testMarkerRegex             = regexp.MustCompile("(?ms)^[ \t]*# TEST[\n]*")
 	solutionMagicRegex          = regexp.MustCompile("^[ \t]*%%solution[^\n]*\n")
 	solutionBeginRegex          = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
@@ -296,7 +296,7 @@ func extractMetadata(re *regexp.Regexp, source string) (metadata map[string]inte
 			metadata = make(map[string]interface{})
 			err = yaml.Unmarshal([]byte(text), &metadata)
 			if err != nil {
-				err = fmt.Errorf("error parsing metadata: %s", err)
+				err = fmt.Errorf("error parsing metadata: %s\n--\n%s\n--", err, text)
 				return
 			}
 		} else {
