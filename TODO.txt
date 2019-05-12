@@ -5,14 +5,14 @@
 # Demo 1 - deadline 5/14
 
 > Authentication for the uploader tool
-> Annotate OOP assignment in master notebook format [#next]
+0 Annotate OOP assignment in master notebook format [#next]
 > End-to-end autograder demo script for OOP assignment
-> Deployment via Docker Compose
+* Deployment via Docker Compose
 
 ## Demo 1 decisions
 
 - Storage for submissions and reports.
-  * Local upload directory
+  * Message queue
 - Storage for autograder scripts.
   * Autograder docker image.
 - Work manager for workers to poll for submissions and post reports
@@ -20,11 +20,14 @@
 - General architecture
   * Use Golang and python
   * Use Bazel for build
+  * Docker compose deployment
 
 ## PostDemo 1
 
-> Build worker and server with Bazel
-> Build docker images with Bazel
+> Create PIP library for notebook magics
+> Define bazel rule for notebooks
+* Build worker and server with Bazel
+0 Build docker images with Bazel
 > Figure out how to test master solution against syntactic tests.
 > Package IPython magics into a pip package
 x Docker image for autograder worker [#later]
