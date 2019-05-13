@@ -1,12 +1,9 @@
-# demo dry run 5/13
-
-> Live demo script
 
 # Demo 1 - deadline 5/14
 
-> Authentication for the uploader tool
+0 Authentication for the uploader tool
 0 Annotate OOP assignment in master notebook format [#next]
-> End-to-end autograder demo script for OOP assignment
+0 End-to-end autograder demo script for OOP assignment
 * Deployment via Docker Compose
 
 ## Demo 1 decisions
@@ -28,17 +25,17 @@
 > Define bazel rule for notebooks
 * Build worker and server with Bazel
 0 Build docker images with Bazel
-> Figure out how to test master solution against syntactic tests.
-> Package IPython magics into a pip package
-x Docker image for autograder worker [#later]
+0 Figure out how to test master solution against syntactic tests.
+* Package IPython magics into a pip package
+* Docker image for autograder worker [#later]
 > Extract master solution to autograder directory too
   > Run the autograder scripts as test for master solution
 > Extract the student tests as unit tests for master solution
 > Extract autograder tests (autotests) as unit tests
-> Map the overlay scratch directory [#next]
-> Docker image for running RabbitMQ (transient) [#later]
-> Docker image for server [#later]
-> Use Bazel to extract Autograder directories [#later]
+x Map the overlay scratch directory [#next]
+* Docker image for running RabbitMQ (transient) [#later]
+* Docker image for server [#later]
+* Use Bazel to extract Autograder directories [#later]
 > Test cell output [#later]
 - Use Protobuffers and GRPC [#later]
 
