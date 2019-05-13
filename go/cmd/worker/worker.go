@@ -23,10 +23,14 @@ var (
 		"The name of the autograder queue to listen to the work requests.")
 	reportQueue = flag.String("report_queue", "report",
 		"The name of the queue to post the reports.")
-	autograderDir = flag.String("autograder_dir", "tmp",
+	autograderDir = flag.String("autograder_dir", "",
 		"The root directory of autograder scripts.")
+	scratchDir = flag.String("scratch_dir", "/tmp",
+		"The scratch directory, where one can write files.")
 	nsjailPath = flag.String("nsjail_path", "/usr/local/bin/nsjail",
-		"The path to nsjail.")
+		"The path to nsjail binary.")
+	pythonPath = flag.String("python_path", "/usr/bin/python3",
+		"The path to python binary.")
 )
 
 func main() {

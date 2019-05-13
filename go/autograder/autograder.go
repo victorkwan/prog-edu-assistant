@@ -26,13 +26,20 @@ type Autograder struct {
 	// second level to exercise_id. In the second-level directories,
 	// python unit test files should be present.
 	Dir        string
+	// ScratchDir points to the directory where one can write, /tmp by default.
+	ScratchDir string
+	// NSJailPath is the path to nsjail, /usr/local/bin/nsjail by default.
 	NSJailPath string
+	PythonPath string
 }
 
 // New creates a new autograder instance given the root directory.
 func New(dir string) *Autograder {
 	return &Autograder{
 		Dir: dir,
+		ScratchDir: "/tmp",
+		NSJailPath: "/usr/local/bin/nsjail",
+		PythonPath: "/usr/bin/python",
 	}
 }
 
@@ -110,18 +117,23 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		if !fs.IsDir() {
 			return nil, fmt.Errorf("%q is not a directory", exerciseDir)
 		}
+		scratchDir := filepath.Join(ag.ScratchDir, submissionID, exerciseID)
+		err := CopyDirFiles(exerciseDir, scratchDir)
+		if err != nil {
+			return nil, fmt.Errorf("error copying autograder scripts from %q to %q: %s", exerciseDir, scratchDir, err)
+		}
 		// TODO(salikh): Implement proper scratch management with overlayfs.
-		filename := filepath.Join(exerciseDir, "submission.py")
-		err := ioutil.WriteFile(filename, []byte(cell.Source), 0775)
+		filename := filepath.Join(scratchDir, "submission.py")
+		err = ioutil.WriteFile(filename, []byte(cell.Source), 0775)
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
-		filename = filepath.Join(exerciseDir, "submission_source.py")
+		filename = filepath.Join(scratchDir, "submission_source.py")
 		err = ioutil.WriteFile(filename, []byte(`source = """`+cell.Source+`"""`), 0775)
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
-		outcomes, logs, err := ag.RunUnitTests(exerciseDir)
+		outcomes, logs, err := ag.RunUnitTests(scratchDir)
 		if err != nil {
 			return nil, fmt.Errorf("error running unit tests in %q: %s", exerciseDir, err)
 		}
@@ -130,7 +142,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			"results": outcomes,
 			"logs": logs,
 		}
-		report, err := ag.RenderReports(exerciseDir, data)
+		report, err := ag.RenderReports(scratchDir, data)
 		if err != nil {
 			return nil, err
 		}
@@ -143,6 +155,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			}
 			allOutcomes[k] = v
 		}
+		_ = os.RemoveAll(scratchDir)
 	}
 	result := make(map[string]interface{})
 	result["assignment_id"] = assignmentID
@@ -178,6 +191,14 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 			continue
 		}
 		cmd := exec.Command(ag.NSJailPath, "-Mo",
+			"--disable_clone_newcgroup",
+			"--disable_clone_newipc",
+			"--disable_clone_newnet",
+			"--disable_clone_newns",
+			"--disable_clone_newpid",
+			"--disable_clone_newuser",
+			"--disable_clone_newuts",
+			"--disable_no_new_privs",
 			"--time_limit", "3",
 			"--max_cpus", "1",
 			"--rlimit_as", "700",
@@ -189,7 +210,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 			"--group", "nogroup",
 			"--iface_no_lo",
 			"--",
-			"/usr/bin/python3", "-m", "unittest",
+			ag.PythonPath, "-m", "unittest",
 			"-v", fs.Name())
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -268,4 +289,33 @@ func (ag *Autograder) RenderReports(dir string, data map[string]interface{}) ([]
 		reports = append(reports, output)
 	}
 	return bytes.Join(reports, nil), nil
+}
+
+// CopyDirFiles copies all files in the directory (one level).
+func CopyDirFiles(src, dest string) error {
+	err := os.MkdirAll(dest, 0755)
+	if err != nil {
+		return fmt.Errorf("error creating dir %q: %s", dest, err)
+	}
+	fss, err := ioutil.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("error listing dir %q: %s", src, err)
+	}
+	for _, fs := range fss {
+		if fs.IsDir() {
+			return fmt.Errorf(" CopyDirFiles: copying dirs recursively not implemented (%s/%s)", src, fs.Name())
+		}
+		filename := filepath.Join(src, fs.Name())
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("error reading %q: %s", filename, err)
+		}
+		filename = filepath.Join(dest, fs.Name())
+		err = ioutil.WriteFile(filename, b, 0644)
+		if err != nil {
+			return fmt.Errorf("error writing %q: %s", filename, err)
+		}
+		glog.V(5).Infof("copied %s from %s to %s", fs.Name(), src, dest)
+	}
+	return nil
 }
