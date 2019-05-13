@@ -30,7 +30,10 @@ type Autograder struct {
 	ScratchDir string
 	// NSJailPath is the path to nsjail, /usr/local/bin/nsjail by default.
 	NSJailPath string
+	// PythonPath is the path to python binary, /usr/bin/python by default.
 	PythonPath string
+	// DisableCleanup instructs the autograder not to delete the scratch directory.
+	DisableCleanup bool
 }
 
 // New creates a new autograder instance given the root directory.
@@ -95,6 +98,11 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	allOutcomes := make(map[string]bool)
 	allReports := make(map[string]string)
 	allLogs := make(map[string]interface{})
+	baseScratchDir := filepath.Join(ag.ScratchDir, submissionID)
+	err = os.MkdirAll(baseScratchDir, 0755)
+	if err != nil {
+		return nil, fmt.Errorf("error making dir %q: %s", baseScratchDir, err)
+	}
 	for _, cell := range n.Cells {
 		if cell.Metadata == nil {
 			continue
@@ -117,7 +125,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		if !fs.IsDir() {
 			return nil, fmt.Errorf("%q is not a directory", exerciseDir)
 		}
-		scratchDir := filepath.Join(ag.ScratchDir, submissionID, exerciseID)
+		scratchDir := filepath.Join(baseScratchDir, exerciseID)
 		err := CopyDirFiles(exerciseDir, scratchDir)
 		if err != nil {
 			return nil, fmt.Errorf("error copying autograder scripts from %q to %q: %s", exerciseDir, scratchDir, err)
@@ -133,6 +141,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
+		glog.V(3).Infof("Running tests in directory %s", scratchDir)
 		outcomes, logs, err := ag.RunUnitTests(scratchDir)
 		if err != nil {
 			return nil, fmt.Errorf("error running unit tests in %q: %s", exerciseDir, err)
@@ -155,7 +164,9 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			}
 			allOutcomes[k] = v
 		}
-		_ = os.RemoveAll(scratchDir)
+	}
+	if !ag.DisableCleanup {
+		_ = os.RemoveAll(baseScratchDir)
 	}
 	result := make(map[string]interface{})
 	result["assignment_id"] = assignmentID
@@ -175,7 +186,11 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 var outcomeRegex = regexp.MustCompile(`(test[a-zA-Z0-9_]*) \(([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]*)\) \.\.\. (ok|FAIL|ERROR)`)
 
 func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]string, error) {
-	err := os.Chdir(dir)
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting abs path for %q: %s", dir, err)
+	}
+	err = os.Chdir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error on chdir %q: %s", dir, err)
 	}
@@ -190,7 +205,8 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 		if !strings.HasSuffix(filename, "Test.py") {
 			continue
 		}
-		cmd := exec.Command(ag.NSJailPath, "-Mo",
+		cmd := exec.Command(ag.NSJailPath,
+			"-Mo",
 			"--disable_clone_newcgroup",
 			"--disable_clone_newipc",
 			"--disable_clone_newnet",
@@ -202,9 +218,9 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 			"--time_limit", "3",
 			"--max_cpus", "1",
 			"--rlimit_as", "700",
-			"-E", "LANG=en_US.UTF-8",
+			"--env", "LANG=en_US.UTF-8",
 			"--disable_proc",
-			"--chroot", "/",
+			//"--chroot", "/",
 			"--cwd", dir,
 			"--user", "nobody",
 			"--group", "nogroup",
@@ -212,6 +228,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 			"--",
 			ag.PythonPath, "-m", "unittest",
 			"-v", fs.Name())
+		glog.V(5).Infof("about to execute %s %q", cmd.Path, cmd.Args)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); !ok {

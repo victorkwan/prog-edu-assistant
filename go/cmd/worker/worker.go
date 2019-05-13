@@ -31,6 +31,8 @@ var (
 		"The path to nsjail binary.")
 	pythonPath = flag.String("python_path", "/usr/bin/python3",
 		"The path to python binary.")
+	disableCleanup = flag.Bool("disable_cleanup", false,
+		"If true, autograder will not delete scratch directory on success.")
 )
 
 func main() {
