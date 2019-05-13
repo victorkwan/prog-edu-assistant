@@ -56,6 +56,18 @@ go_repository(
 )
 
 go_repository(
+    name = "org_golang_x_oauth2",
+    commit = "9f3314589c9a9136388751d9adae6b0ed400978a",
+    importpath = "golang.org/x/oauth2",
+)
+
+go_repository(
+    name = "com_google_cloud_go",
+    commit = "777200caa7fb8936aed0f12b1fd79af64cc83ec9",
+    importpath = "cloud.google.com/go",
+)
+
+go_repository(
     name = "com_github_google_uuid",
     commit = "v1.1.1",
     importpath = "github.com/google/uuid",
@@ -65,6 +77,24 @@ go_repository(
     name = "com_github_streadway_amqp",
     commit = "75d898a42a940fbc854dfd1a4199eabdc00cf024",
     importpath = "github.com/streadway/amqp",
+)
+
+go_repository(
+    name = "com_github_gorilla_sessions",
+    commit = "v1.1.3",
+    importpath = "github.com/gorilla/sessions",
+)
+
+go_repository(
+    name = "com_github_gorilla_securecookie",
+    commit = "v1.1.1",
+    importpath = "github.com/gorilla/securecookie",
+)
+
+go_repository(
+    name = "com_github_gorilla_context",
+    commit = "v1.1.1",
+    importpath = "github.com/gorilla/context",
 )
 
 http_archive(
