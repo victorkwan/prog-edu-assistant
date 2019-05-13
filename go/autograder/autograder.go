@@ -87,6 +87,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	}
 	allOutcomes := make(map[string]bool)
 	allReports := make(map[string]string)
+	allLogs := make(map[string]interface{})
 	for _, cell := range n.Cells {
 		if cell.Metadata == nil {
 			continue
@@ -120,15 +121,21 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
 		}
-		outcomes, err := ag.RunUnitTests(exerciseDir)
+		outcomes, logs, err := ag.RunUnitTests(exerciseDir)
 		if err != nil {
 			return nil, fmt.Errorf("error running unit tests in %q: %s", exerciseDir, err)
 		}
-		report, err := ag.RenderReports(exerciseDir, outcomes)
+		// Small data for the report generation.
+		data := map[string]interface{}{
+			"results": outcomes,
+			"logs": logs,
+		}
+		report, err := ag.RenderReports(exerciseDir, data)
 		if err != nil {
 			return nil, err
 		}
 		allReports[exerciseID] = string(report)
+		allLogs[exerciseID] = logs
 		for k, v := range outcomes {
 			_, ok := allOutcomes[k]
 			if ok {
@@ -141,6 +148,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	result["assignment_id"] = assignmentID
 	result["submission_id"] = submissionID
 	result["outcomes"] = allOutcomes
+	result["logs"] = allLogs
 	result["reports"] = allReports
 	b, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -153,16 +161,17 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 
 var outcomeRegex = regexp.MustCompile(`(test[a-zA-Z0-9_]*) \(([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]*)\) \.\.\. (ok|FAIL|ERROR)`)
 
-func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
+func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]string, error) {
 	err := os.Chdir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("error on chdir %q: %s", dir, err)
+		return nil, nil, fmt.Errorf("error on chdir %q: %s", dir, err)
 	}
 	fss, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("error on listing %q: %s", dir, err)
+		return nil, nil, fmt.Errorf("error on listing %q: %s", dir, err)
 	}
 	outcomes := make(map[string]bool)
+	logs := make(map[string]string)
 	for _, fs := range fss {
 		filename := fs.Name()
 		if !strings.HasSuffix(filename, "Test.py") {
@@ -185,7 +194,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); !ok {
-				return nil, fmt.Errorf("error running unit test command %q %q: %s", cmd.Path, cmd.Args, err)
+				return nil, nil, fmt.Errorf("error running unit test command %q %q: %s", cmd.Path, cmd.Args, err)
 			}
 			// Overall status was non-ok.
 			outcomes[filename] = false
@@ -193,6 +202,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 			// The file run okay.
 			outcomes[filename] = true
 		}
+		logs[filename] = string(out)
 		// TODO(salikh): Implement a more robust way of reporting individual
 		// test statuses from inside the test runner.
 		mm := outcomeRegex.FindAllSubmatch(out, -1)
@@ -213,10 +223,10 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, error) {
 			}
 		}
 	}
-	return outcomes, nil
+	return outcomes, logs, nil
 }
 
-func (ag *Autograder) RenderReports(dir string, outcomes map[string]bool) ([]byte, error) {
+func (ag *Autograder) RenderReports(dir string, data map[string]interface{}) ([]byte, error) {
 	err := os.Chdir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("error on chdir %q: %s", dir, err)
@@ -225,7 +235,7 @@ func (ag *Autograder) RenderReports(dir string, outcomes map[string]bool) ([]byt
 	if err != nil {
 		return nil, fmt.Errorf("error on listing %q: %s", dir, err)
 	}
-	outcomesJson, err := json.Marshal(outcomes)
+	dataJson, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
@@ -236,13 +246,13 @@ func (ag *Autograder) RenderReports(dir string, outcomes map[string]bool) ([]byt
 			continue
 		}
 		cmd := exec.Command("python", filename)
-		glog.V(3).Infof("Starting command %s %q with input %q", cmd.Path, cmd.Args, string(outcomesJson))
+		glog.V(3).Infof("Starting command %s %q with input %q", cmd.Path, cmd.Args, string(dataJson))
 		cmdIn, err := cmd.StdinPipe()
 		if err != nil {
 			return nil, err
 		}
 		go func() {
-			cmdIn.Write(outcomesJson)
+			cmdIn.Write(dataJson)
 			cmdIn.Close()
 		}()
 		output, err := cmd.CombinedOutput()

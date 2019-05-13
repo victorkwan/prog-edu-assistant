@@ -1,0 +1,2 @@
+bazel clean
+pkill jupyter

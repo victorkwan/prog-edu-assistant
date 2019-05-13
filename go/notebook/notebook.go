@@ -553,11 +553,11 @@ template = """` + source + `"""
 
 if __name__ == '__main__':
   input = sys.stdin.read()
-  results = json.loads(input)
+  data = json.loads(input)
   highlighted_source = highlight(submission_source.source, PythonLexer(),
                                  HtmlFormatter())
   tmpl = Template(template)
-  sys.stdout.write(tmpl.render(results=results, source=highlighted_source))
+  sys.stdout.write(tmpl.render(results=data['results'], source=highlighted_source, logs=data['logs']))
 `,
 			}, nil
 		}

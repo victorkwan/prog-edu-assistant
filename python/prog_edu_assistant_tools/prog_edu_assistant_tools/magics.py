@@ -26,7 +26,7 @@ def autotest(testClass):
             resultclass=SummaryTestResult).run(suite) 
     return result, errors.getvalue()
 
-def report(template, source, results):
+def report(template, **kwargs):
     """Non-magic version of the report.
 
     This function can be used as
@@ -34,11 +34,14 @@ def report(template, source, results):
         report(template, submission_source.source, results)
 
     """
-    highlighted_source = highlight(source, PythonLexer(), HtmlFormatter())
+    if 'source' in kwargs:
+        # TODO(salikh): Avoid rewriting user input.
+        kwargs['raw_source'] = kwargs['source']
+        kwargs['source'] = highlight(kwargs['source'], PythonLexer(), HtmlFormatter())
     # Render the template giving the specified variable as 'results',
     # and render the result as inlined HTML in cell output. 'source' is
     # the prerendered source code.
-    return HTML(template.render(results=results, source=highlighted_source))
+    return HTML(template.render(**kwargs))
 
 # The class MUST call this class decorator at creation time
 @magics_class
@@ -75,7 +78,7 @@ class MyMagics(Magics):
         This magic is useful for auto-testing (testing autograder unit tests on incorrect inputs)"""
         
         # Copy the source into submission_source.source
-        self.shell.user_ns['submission_source'] = SimpleNamespace(source=cell)
+        self.shell.user_ns['submission_source'] = SimpleNamespace(source=cell.rstrip())
 
         env = {}
         try:
@@ -104,7 +107,7 @@ class MyMagics(Magics):
         cell = re.sub('(?ms)^[ \t]*# (BEGIN|END) SOLUTION[ \t]*\n?', '', cell)
 
         # Copy the source into submission_source.source
-        self.shell.user_ns['submission_source'] = SimpleNamespace(source=cell)
+        self.shell.user_ns['submission_source'] = SimpleNamespace(source=cell.rstrip())
         
         env = {}
         # Note: if solution throws exception, this breaks the execution. Solution must be correct!
