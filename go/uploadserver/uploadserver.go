@@ -2,6 +2,7 @@ package uploadserver
 
 import (
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,10 +25,10 @@ type Options struct {
 	// UploadDir specifies the directory to write uploaded files to
 	// and to serve on /uploads.
 	UploadDir string
-	// DisableCORS specifies whether the server should disable CORS
-	// (Cross-origin request sharing) checks in browser by adding
-	// Access-Control-Allow-Origin:* HTTP header.
-	DisableCORS bool
+	// AllowCORSOrigin specifies the origin allowed for cross-origin requests.
+	// This value is returned in
+	// Access-Control-Allow-Origin: HTTP header.
+	AllowCORSOrigin string
 	// QueueName is the name of the queue to post uploads.
 	QueueName string
 	// Channel is the interface to the message queue.
@@ -35,6 +36,7 @@ type Options struct {
 	// UseOpenID enables authentication using OpenID Connect.
 	UseOpenID bool
 	// AllowedUsers lists the users that are authorized to use this service.
+	// If the map is empty, no access control is performed, only authentication.
 	AllowedUsers map[string]bool
 	// AuthEndpoint specifies the OpenID Connect authentication and token endpoints.
 	AuthEndpoint oauth2.Endpoint
@@ -82,6 +84,7 @@ func New(opts Options) *Server {
 	mux.Handle("/upload", handleError(s.handleUpload))
 	mux.Handle("/uploads/", http.StripPrefix("/uploads",
 		http.FileServer(http.Dir(s.opts.UploadDir))))
+	mux.HandleFunc("/favicon.ico", s.handleFavIcon)
 	mux.Handle("/report/", handleError(s.handleReport))
 	if s.opts.UseOpenID {
 		mux.Handle("/login", handleError(s.handleLogin))
@@ -112,7 +115,7 @@ func handleError(fn func(http.ResponseWriter, *http.Request) error) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		err := fn(w, req)
 		if err != nil {
-			glog.Error(err.Error())
+			glog.Errorf("%s  %s", req.URL, err.Error())
 			status, ok := err.(httpError)
 			if ok {
 				http.Error(w, err.Error(), int(status))
@@ -123,10 +126,15 @@ func handleError(fn func(http.ResponseWriter, *http.Request) error) http.Handler
 	})
 }
 
+func (s *Server) handleFavIcon(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "image/x-icon")
+	w.Write(favIcon)
+}
 func (s *Server) handleReport(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.DisableCORS {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+	if s.opts.AllowCORSOrigin != ""{
+		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 	basename := path.Base(req.URL.Path)
 	filename := filepath.Join(s.opts.UploadDir, basename+".txt")
@@ -253,7 +261,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, req *http.Request) error 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return nil
 	}
-	if !s.opts.AllowedUsers[profile.Email] {
+	if len(s.opts.AllowedUsers) > 0 && !s.opts.AllowedUsers[profile.Email] {
 		delete(session.Values, "email")
 		session.Save(req, w)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -264,7 +272,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, req *http.Request) error 
 	}
 	session.Values["email"] = profile.Email
 	session.Save(req, w)
-	w.Write([]byte(fmt.Sprintf("<title>Welcome</title>Welcome, %s.<br><a href='/'>Go to top</a>.", profile.Email)))
+	http.Redirect(w, req, "/profile", http.StatusTemporaryRedirect)
 	return nil
 }
 
@@ -276,7 +284,8 @@ func (s *Server) handleProfile(w http.ResponseWriter, req *http.Request) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	email, ok := session.Values["email"]
 	if ok {
-		fmt.Fprintf(w, "Logged in as %s. <a href='/logout'>Log out</a>.", email)
+		fmt.Fprintf(w, "Logged in as %s. <a href='/logout'>Log out link</a>.", email)
+		fmt.Fprintf(w, "<p><strong>You can close this window and retry upload now.</strong>")
 	} else {
 		fmt.Fprintf(w, "Logged out. <a href='/login'>Log in</a>.")
 	}
@@ -290,8 +299,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, req *http.Request) error {
 	}
 	delete(session.Values, "email")
 	session.Save(req, w)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte("Logged out"))
+	http.Redirect(w, req, "/profile", http.StatusTemporaryRedirect)
 	return nil
 }
 
@@ -301,10 +309,11 @@ func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 	email, ok := session.Values["email"].(string)
+	glog.V(3).Infof("authenticate %s: email=%s", req.URL, session.Values["email"])
 	if !ok || email == "" {
 		return httpError(http.StatusUnauthorized)
 	}
-	if !s.opts.AllowedUsers[email] {
+	if len(s.opts.AllowedUsers) > 0 && !s.opts.AllowedUsers[email] {
 		return httpError(http.StatusForbidden)
 	}
 	return nil
@@ -313,27 +322,24 @@ func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
 const maxUploadSize = 1048576
 
 func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.DisableCORS {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+	if s.opts.AllowCORSOrigin != ""{
+		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
+	glog.Infof("%s %s", req.Method, req.URL.Path)
 	if req.Method == "OPTIONS" {
-		glog.Infof("OPTIONS %s", req.URL.Path)
 		return nil
 	}
-	if req.Method != "POST" {
-		return fmt.Errorf("Unsupported method %s on %s", req.Method, req.URL.Path)
-	}
-	if s.opts.UseOpenID {
+  if s.opts.UseOpenID {
 		err := s.authenticate(w, req)
 		if err != nil {
-			return err
+						return err
 		}
-	}
+  }
 	if req.Method != "POST" {
 		return fmt.Errorf("Unsupported method %s on %s", req.Method, req.URL.Path)
 	}
-	glog.Infof("POST %s", req.URL.Path)
 	req.Body = http.MaxBytesReader(w, req.Body, maxUploadSize)
 	err := req.ParseMultipartForm(maxUploadSize)
 	if err != nil {
@@ -382,7 +388,11 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/plain")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if s.opts.AllowCORSOrigin != ""{
+		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	glog.V(5).Infof("Uploaded: %s", string(b))
 	fmt.Fprintf(w, "/report/"+submissionID)
@@ -445,3 +455,94 @@ const uploadHTML = `<!DOCTYPE html>
 	<input type="file" name="notebook">
 	<input type="submit" value="Upload">
 </form>`
+
+
+
+const favIconBase64 = `
+AAABAAEAICAAAAEAIACoEAAAFgAAACgAAAAgAAAAQAAAAAEAIAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/BAAA/18AAP+2AAD/5wAA//oAAP/0
+AAD/1wAA/5gAAP8sAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/xcAAP/KAAD//wAA
+//8AAP//AAD//wAA//8AAP//AAD//wAA//0AAP90AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8B
+AAD/wAAA//8AAP/4AAD/ewAA/yMAAP8FAAD/DAAA/0AAAP+8AAD//wAA//8AAP9SAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAA/0cAAP//AAD//wAA/1UAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/wMAAP/BAAD/
+/wAA/9gAAP8BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/mgAA//8AAP/aAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAA/0gAAP//AAD//wAA/ywAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/MAAD//wAA/50AAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/DAAA//4AAP//AAD/XgAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+AA
+AP//AAD/gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/7wAA//8AAP9yAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAD/6AAA//8AAP94AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/k
+AAD//wAA/3sAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/oAAD//wAA/3gAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAA/+QAAP//AAD/fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+gAAP//AAD/eAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/5AAA//8AAP98AAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/6AAA
+//8AAP94AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/kAAD//wAA/3wAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAP/oAAD//wAA/3gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+QA
+AP//AAD/fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+gAAP//AAD/eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAD/5AAA//8AAP98AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/6AAA//8AAP94AAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/kAAD//wAA/3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/oAAD/
+/wAA/3gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+QAAP//AAD/fAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAA/+gAAP//AAD/eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/5AAA
+//8AAP98AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/6AAA//8AAP94AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAP/kAAD//wAA/3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/oAAD//wAA/3gAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+QAAP//AAD/fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////
+///////////////////////////////////gD///wAf//4AD//+Hwf//j+H//4/h//+P8f//j/H/
+/4/x//+P8f//j/H//4/x//+P8f//j/H//4/x//+P8f//j/H//4/x////////////////////////
+//////////////8=
+`
+
+var favIcon []byte
+
+func init() {
+	var err error
+	favIcon, err = base64.StdEncoding.DecodeString(favIconBase64)
+	if err != nil {
+		panic(err)
+	}
+}

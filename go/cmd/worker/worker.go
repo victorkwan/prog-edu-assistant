@@ -54,6 +54,7 @@ func run() error {
 	*autograderDir = filepath.Clean(*autograderDir)
 	ag := autograder.New(*autograderDir)
 	ag.NSJailPath = *nsjailPath
+	ag.PythonPath = *pythonPath
 	delay := 500*time.Millisecond
 	retryUntil := time.Now().Add(60*time.Second)
 	var q *queue.Channel
