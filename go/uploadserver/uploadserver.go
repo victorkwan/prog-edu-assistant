@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -88,6 +87,7 @@ func New(opts Options) *Server {
 		mux.Handle("/login", handleError(s.handleLogin))
 		mux.Handle("/callback", handleError(s.handleCallback))
 		mux.Handle("/logout", handleError(s.handleLogout))
+		mux.Handle("/profile", handleError(s.handleProfile))
 	}
 	return s
 }
@@ -265,6 +265,21 @@ func (s *Server) handleCallback(w http.ResponseWriter, req *http.Request) error 
 	session.Values["email"] = profile.Email
 	session.Save(req, w)
 	w.Write([]byte(fmt.Sprintf("<title>Welcome</title>Welcome, %s.<br><a href='/'>Go to top</a>.", profile.Email)))
+	return nil
+}
+
+func (s *Server) handleProfile(w http.ResponseWriter, req *http.Request) error {
+	session, err := s.cookieStore.Get(req, UserSessionName)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	email, ok := session.Values["email"]
+	if ok {
+		fmt.Fprintf(w, "Logged in as %s. <a href='/logout'>Log out</a>.", email)
+	} else {
+		fmt.Fprintf(w, "Logged out. <a href='/login'>Log in</a>.")
+	}
 	return nil
 }
 

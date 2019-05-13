@@ -10,6 +10,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/prog-edu-assistant/uploadserver"
 	"github.com/google/prog-edu-assistant/queue"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 var (
@@ -19,10 +21,15 @@ var (
 		"The path to the signed SSL server certificate.")
 	sslKeyFile = flag.String("ssl_key_file", "localhost.key",
 		"The path to the SSL server key.")
-	uploadDir   = flag.String("upload_dir", "uploads", "The directory to write uploaded notebooks.")
 	disableCORS = flag.Bool("disable_cors", false, "If true, disables CORS browser checks. "+
 		"This is currently necessary to enable uploads from Jupyter notebooks, but unfortunately "+
 		"it also makes the server vulnerable to XSRF attacks. Use with care.")
+	useOpenID = flag.Bool("use_openid", true, "If true, enable OpenID Connect authentication.")
+	openIDServer = flag.String("openIDServer", "",
+		"The host name of the Open ID Connect server. It is used for constructing "+
+		"/.well-known/openid-configuration URL. If empty, google Open ID Connect "+
+		"is assumed.")
+	uploadDir   = flag.String("upload_dir", "uploads", "The directory to write uploaded notebooks.")
 	queueSpec      = flag.String("queue_spec", "amqp://guest:guest@localhost:5672/",
 		"The spec of the queue to connect to.")
 	autograderQueue = flag.String("autograder_queue", "autograde",
@@ -40,6 +47,18 @@ func main() {
 }
 
 func run() error {
+	var oauthConfig *oauth2.Config
+	if *openIDServer != "" {
+
+	} else {
+    oauthConfig = &oauth2.Config{
+      RedirectURL:  opts.ServerURL + "/callback",
+      ClientID:     opts.ClientID,
+      ClientSecret: opts.ClientSecret,
+      Scopes:       []string{"openid", "email"},
+      Endpoint:     google.Endpoint,
+    },
+	}
 	delay := 500*time.Millisecond
 	retryUntil := time.Now().Add(60*time.Second)
 	var q *queue.Channel
@@ -62,18 +81,28 @@ func run() error {
 		}
 		break
 	}
-	s := uploadserver.New(uploadserver.Options{
-		UploadDir:   *uploadDir,
-		DisableCORS: *disableCORS,
-		Channel: q,
-		QueueName: *autograderQueue,
-	})
 	addr := ":" + strconv.Itoa(*port)
 	protocol := "http"
 	if *useHTTPS {
 		protocol = "https"
 	}
-	fmt.Printf("\n  Serving on %s://localhost%s\n\n", protocol, addr)
+	serverURL := fmt.Sprintf("%s://localhost%s", protocol, addr)
+	s := uploadserver.New(uploadserver.Options{
+		DisableCORS: *disableCORS,
+		ServerURL: serverURL,
+		UploadDir:   *uploadDir,
+		Channel: q,
+		QueueName: *autograderQueue,
+		UseOpenID: *useOpenID,
+		// TODO(salikh): Take the list of users as CVS file on command line.
+		AllowedUsers: map[string]bool{"salikh@gmail.com": true, "salikh@google.com": true},
+		AuthKey:      os.Getenv("SESSION_AUTH_KEY"),
+		EncryptKey:   os.Getenv("SESSION_ENCRYPTION_KEY"),
+		ServerURL:    os.Getenv("SERVER_URL"),
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	})
+	fmt.Printf("\n  Serving on %s\n\n", serverURL)
 	if *useHTTPS {
 		return s.ListenAndServeTLS(addr, *sslCertFile, *sslKeyFile)
 	}
