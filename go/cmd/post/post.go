@@ -4,8 +4,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	queueSpec      = flag.String("queue_spec", "amqp://guest:guest@localhost:5672/",
+	queueSpec = flag.String("queue_spec", "amqp://guest:guest@localhost:5672/",
 		"The spec of the queue to connect to.")
 	autograderQueue = flag.String("autograder_queue", "autograde",
 		"The name of the autograder queue to listen to the work requests.")

@@ -1,8 +1,8 @@
 package uploadserver
 
 import (
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -56,7 +56,7 @@ type Server struct {
 	opts            Options
 	mux             *http.ServeMux
 	reportTimestamp map[string]time.Time
-	cookieStore *sessions.CookieStore
+	cookieStore     *sessions.CookieStore
 	// OauthConfig specifies endpoing configuration for the OpenID Connect
 	// authentication.
 	oauthConfig *oauth2.Config
@@ -70,7 +70,7 @@ func New(opts Options) *Server {
 		opts:            opts,
 		mux:             mux,
 		reportTimestamp: make(map[string]time.Time),
-		cookieStore: sessions.NewCookieStore([]byte(opts.CookieAuthKey), []byte(opts.CookieEncryptKey)),
+		cookieStore:     sessions.NewCookieStore([]byte(opts.CookieAuthKey), []byte(opts.CookieEncryptKey)),
 		oauthConfig: &oauth2.Config{
 			RedirectURL:  opts.ServerURL + "/callback",
 			ClientID:     opts.ClientID,
@@ -98,6 +98,10 @@ func New(opts Options) *Server {
 const UserSessionName = "user_session"
 
 func (s *Server) ListenAndServe(addr string) error {
+	err := os.MkdirAll(s.TmpDir, 0700)
+	if err != nil {
+		return err
+	}
 	return http.ListenAndServe(addr, s.mux)
 }
 
@@ -131,7 +135,7 @@ func (s *Server) handleFavIcon(w http.ResponseWriter, req *http.Request) {
 	w.Write(favIcon)
 }
 func (s *Server) handleReport(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.AllowCORSOrigin != ""{
+	if s.opts.AllowCORSOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -322,7 +326,7 @@ func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
 const maxUploadSize = 1048576
 
 func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.AllowCORSOrigin != ""{
+	if s.opts.AllowCORSOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -331,12 +335,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	if req.Method == "OPTIONS" {
 		return nil
 	}
-  if s.opts.UseOpenID {
+	if s.opts.UseOpenID {
 		err := s.authenticate(w, req)
 		if err != nil {
-						return err
+			return err
 		}
-  }
+	}
 	if req.Method != "POST" {
 		return fmt.Errorf("Unsupported method %s on %s", req.Method, req.URL.Path)
 	}
@@ -388,7 +392,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/plain")
-	if s.opts.AllowCORSOrigin != ""{
+	if s.opts.AllowCORSOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -455,8 +459,6 @@ const uploadHTML = `<!DOCTYPE html>
 	<input type="file" name="notebook">
 	<input type="submit" value="Upload">
 </form>`
-
-
 
 const favIconBase64 = `
 AAABAAEAICAAAAEAIACoEAAAFgAAACgAAAAgAAAAQAAAAAEAIAAAAAAAAAAAAAAAAAAAAAAAAAAA

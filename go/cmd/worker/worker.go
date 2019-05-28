@@ -11,13 +11,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/prog-edu-assistant/queue"
-	"github.com/google/prog-edu-assistant/autograder"
 	"github.com/golang/glog"
+	"github.com/google/prog-edu-assistant/autograder"
+	"github.com/google/prog-edu-assistant/queue"
 )
 
 var (
-	queueSpec      = flag.String("queue_spec", "amqp://guest:guest@localhost:5672/",
+	queueSpec = flag.String("queue_spec", "amqp://guest:guest@localhost:5672/",
 		"The spec of the queue to connect to.")
 	autograderQueue = flag.String("autograder_queue", "autograde",
 		"The name of the autograder queue to listen to the work requests.")
@@ -55,10 +55,10 @@ func run() error {
 	ag := autograder.New(*autograderDir)
 	ag.NSJailPath = *nsjailPath
 	ag.PythonPath = *pythonPath
-	delay := 500*time.Millisecond
-	retryUntil := time.Now().Add(60*time.Second)
+	delay := 500 * time.Millisecond
+	retryUntil := time.Now().Add(60 * time.Second)
 	var q *queue.Channel
-	var ch <-chan[]byte
+	var ch <-chan []byte
 	for {
 		var err error
 		q, err = queue.Open(*queueSpec)
@@ -68,7 +68,7 @@ func run() error {
 			}
 			glog.V(1).Infof("error opening queue %q: %s, retrying in %s", *queueSpec, err, delay)
 			time.Sleep(delay)
-			delay = delay*2
+			delay = delay * 2
 			continue
 		}
 		ch, err = q.Receive(*autograderQueue)

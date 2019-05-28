@@ -14,7 +14,7 @@ var (
 	queueName = flag.String("queue", "", "The name of the queue.")
 	command   = flag.String("command", "", "The command to perform.")
 	message   = flag.String("message", "", "The message to send. If not specified, --file is used.")
-	file = flag.String("file", "", "The path to the file to send.")
+	file      = flag.String("file", "", "The path to the file to send.")
 )
 
 type Cmd struct {
@@ -25,7 +25,7 @@ type Cmd struct {
 var commands = map[string]*Cmd{
 	"post":    &Cmd{"Post a message to a queue.", postCommand},
 	"receive": &Cmd{"Receive a single message from a queue.", receiveCommand},
-	"listen": &Cmd{"Receive messages from a queue forever.", listenCommand},
+	"listen":  &Cmd{"Receive messages from a queue forever.", listenCommand},
 }
 
 func main() {

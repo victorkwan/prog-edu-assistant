@@ -25,7 +25,7 @@ type Autograder struct {
 	// Under Dir, the first level directory names are matched to assignment_id,
 	// second level to exercise_id. In the second-level directories,
 	// python unit test files should be present.
-	Dir        string
+	Dir string
 	// ScratchDir points to the directory where one can write, /tmp by default.
 	ScratchDir string
 	// NSJailPath is the path to nsjail, /usr/local/bin/nsjail by default.
@@ -39,7 +39,7 @@ type Autograder struct {
 // New creates a new autograder instance given the root directory.
 func New(dir string) *Autograder {
 	return &Autograder{
-		Dir: dir,
+		Dir:        dir,
 		ScratchDir: "/tmp",
 		NSJailPath: "/usr/local/bin/nsjail",
 		PythonPath: "/usr/bin/python",
@@ -149,7 +149,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		// Small data for the report generation.
 		data := map[string]interface{}{
 			"results": outcomes,
-			"logs": logs,
+			"logs":    logs,
 		}
 		report, err := ag.RenderReports(scratchDir, data)
 		if err != nil {
