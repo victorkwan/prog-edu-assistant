@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+# A debugging script for building the assets (student notebooks and autograder
+# scripts) without relying on Bazel or Docker.
+#
+# See ./start-servers.sh.
 
 cd "$(dirname "$0")"
 
