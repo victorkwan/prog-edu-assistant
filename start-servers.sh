@@ -23,4 +23,7 @@ go run cmd/worker/worker.go --autograder_dir=../tmp-autograder --logtostderr --v
 trap 'kill %3; kill %2; kill %1' SIGINT
 
 # Start the upload server
-go run cmd/uploadserver/main.go --logtostderr --v=3 --upload_dir=../tmp-uploads
+go run cmd/uploadserver/main.go \
+  --logtostderr --v=3 \
+  --upload_dir=../tmp-uploads \
+  --allow_cors_origin=http://localhost:8888

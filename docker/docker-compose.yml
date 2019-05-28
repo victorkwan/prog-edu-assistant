@@ -3,7 +3,7 @@ services:
   rabbitmq:
     image: rabbitmq
   web:
-    ports: 
+    ports:
       - "8000:8000"
     image: server:latest
     entrypoint: ['/usr/local/bin/uploadserver', '-upload_dir', '/tmp', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-allow_cors_origin', 'http://localhost:8888']
