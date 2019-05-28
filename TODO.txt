@@ -22,7 +22,7 @@
 ## PostDemo 1
 
 * Create PIP library for notebook magics
-> Define bazel rule for notebooks
+* Define bazel rule for notebooks
 * Build worker and server with Bazel
 0 Build docker images with Bazel
 0 Figure out how to test master solution against syntactic tests.
