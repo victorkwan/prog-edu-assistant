@@ -1,3 +1,10 @@
+"""A package providing SummaryTestResult.
+
+This pacakge provides SummaryTestResult, which is an extensions
+of unittest.TextTestResult that also collects summary of test case
+statuses: True (passed) / False (failed/error) in a dictionary
+keyed by the 'TestClass.test_method'.
+"""
 import unittest
 
 
@@ -107,7 +114,7 @@ class SummaryTestResult(unittest.TextTestResult):
     def printErrorList(self, flavour, errors):
         for test, err in errors:
             self.stream.writeln(self.separator1)
-            self.stream.writeln("%s: %s" % (flavour,
-                                            self.getDescription(test)))
+            self.stream.writeln("%s: %s" %
+                                (flavour, self.getDescription(test)))
             self.stream.writeln(self.separator2)
             self.stream.writeln("%s" % err)
