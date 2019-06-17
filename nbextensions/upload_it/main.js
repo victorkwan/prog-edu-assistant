@@ -86,10 +86,10 @@ define([
               method: "POST",
               success: function(data, status, jqXHR) {
                 // Open the report in a new tab.
-                var u = new URL(url);
-                var reportURL = u.protocol + "//" + u.host + data;
-                window.open(reportURL, '_blank');
-                window.console.log("Upload OK", reportURL);
+                let u = new URL(url);
+                u.pathname = data;
+                window.console.log("Upload OK, opening report at ", u);
+                window.open(u, '_blank');
               },
               error: function(jqXHR, status, err) {
                 if (err == "Unauthorized") {
