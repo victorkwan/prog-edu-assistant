@@ -88,7 +88,7 @@ define([
                 // Open the report in a new tab.
                 let u = new URL(url);
                 u.pathname = data;
-                window.console.log("Upload OK, opening report at ", u);
+                window.console.log("Upload OK, opening report at ", u.toString());
                 window.open(u, '_blank');
               },
               error: function(jqXHR, status, err) {
