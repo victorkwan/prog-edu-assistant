@@ -50,7 +50,7 @@ define([
 
   // Returns a JQuery object with the dialog.
   function buildUploadDialog() {
-    const $uploadDialog = $("#upload_it_dialog");
+    let $uploadDialog = $("#upload_it_dialog");
     if ($uploadDialog.length > 0) {
       return $uploadDialog;
     }
