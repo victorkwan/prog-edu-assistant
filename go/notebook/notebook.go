@@ -563,23 +563,23 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
 				Source: `
-from jinja2 import Template
+import jinja2
 import json
 import sys
 import submission_source
-from pygments import highlight
-from pygments.lexers import PythonLexer
-from pygments.formatters import HtmlFormatter
+import pygments
+from pygments import lexers
+from pygments import formatters
 
 template = """` + source + `"""
 
 if __name__ == '__main__':
   input = sys.stdin.read()
   data = json.loads(input)
-  highlighted_source = highlight(submission_source.source, PythonLexer(),
-                                 HtmlFormatter())
-  tmpl = Template(template)
-  sys.stdout.write(tmpl.render(results=data['results'], source=highlighted_source, logs=data['logs']))
+  source = submission_source.source
+  formatted_source = pygments.highlight(source, lexers.PythonLexer(), formatters.HtmlFormatter())
+  tmpl = jinja2.Template(template)
+  sys.stdout.write(tmpl.render(results=data['results'], formatted_source=formatted_source, logs=data['logs']))
 `,
 			}, nil
 		}
