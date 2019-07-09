@@ -1,9 +1,12 @@
+# Pilot - deadline 7/20 (8/8)
+
+> make %%solution cell to display the output
 
 # Demo 1 - deadline 5/14
 
-0 Authentication for the uploader tool
-0 Annotate OOP assignment in master notebook format [#next]
-0 End-to-end autograder demo script for OOP assignment
+* Authentication for the uploader tool
+> Annotate OOP assignment in master notebook format [#next]
+> End-to-end autograder demo script for OOP assignment
 * Deployment via Docker Compose
 
 ## Demo 1 decisions
