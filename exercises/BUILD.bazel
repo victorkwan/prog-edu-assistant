@@ -89,6 +89,17 @@ pkg_tar(
     strip_prefix = "oop-en-autograder",
 )
 
+pkg_tar(
+    name = "student_notebooks_tar",
+    strip_prefix = ".",  # This is to prevent directory flattening.
+    srcs = [
+	":helloworld-en-student",
+	":oop-en-student",
+	":dataframe-pre1-en-student",
+	":data/tokyo-weather.csv",
+    ],
+)
+
 #pkg_tar(
 #    name = "nsjail_tar",
 #    srcs = [":nsjail"],
