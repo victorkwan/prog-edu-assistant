@@ -26,6 +26,30 @@ genrule(
 )
 
 genrule(
+    name = "dataframe-pre1-en-student",
+    srcs = [
+        "dataframe-pre1-en-master.ipynb",
+    ],
+    outs = ["dataframe-pre1-en-student.ipynb"],
+    cmd = """$(location //go/cmd/assign) --input="$(location :dataframe-pre1-en-master.ipynb)" --output="$@" --command=student""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
+    name = "dataframe-pre1-en-autograder-dir",
+    srcs = [
+        "dataframe-pre1-en-master.ipynb",
+    ],
+    outs = ["dataframe-pre1-en-autograder"],
+    cmd = """$(location //go/cmd/assign) --input="$(location :dataframe-pre1-en-master.ipynb)" --output="$@" --command=autograder""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
     name = "oop-en-student",
     srcs = [
         "oop-en-master.ipynb",
