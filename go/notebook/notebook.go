@@ -247,14 +247,14 @@ var (
 	exerciseMetadataRegex       = regexp.MustCompile("(?m)^[ \t]*# EXERCISE METADATA")
 	tripleBacktickedRegex       = regexp.MustCompile("(?ms)^```([^`]|`[^`]|``[^`])*^```")
 	testMarkerRegex             = regexp.MustCompile("(?ms)^[ \t]*# TEST[^\n]*[\n]*")
-	studentTestRegex            = regexp.MustCompile("(?ms)^[ \t]*%%studenttest(?:[ \t]+([a-zA-Z][a-zA-Z0-9_]*))[ \t]*[\n]*")
+	studentTestRegex            = regexp.MustCompile("(?ms)^[ \t]*#? ?%%studenttest(?:[ \t]+([a-zA-Z][a-zA-Z0-9_]*))[ \t]*[\n]*")
 	inlineTestRegex             = regexp.MustCompile("(?ms)^[ \t]*#? ?%%inlinetest(?:[ \t]+([a-zA-Z][a-zA-Z0-9_]*))[ \t]*[\n]*")
 	inlineOrStudentTestRegex    = regexp.MustCompile("(?ms)^[ \t]*#? ?%%(?:inline|student)test(?:[ \t]+([a-zA-Z][a-zA-Z0-9_]*))[ \t]*[\n]*")
 	solutionMagicRegex          = regexp.MustCompile("^[ \t]*%%solution[^\n]*\n")
 	solutionBeginRegex          = regexp.MustCompile("(?m)^([ \t]*)# BEGIN SOLUTION *\n")
 	solutionEndRegex            = regexp.MustCompile("(?m)^[ \t]*# END SOLUTION *")
 	promptBeginRegex            = regexp.MustCompile("(?m)^[ \t]*\"\"\" # BEGIN PROMPT *\n|^[ \t]*# BEGIN PROMPT *\n")
-	promptEndRegex              = regexp.MustCompile("(?m)\n[ \t]*\"\"\" # END PROMPT *\n|^[ \t]*# END PROMPT *\n")
+	promptEndRegex              = regexp.MustCompile("(?m)\n[ \t]*\"\"\" # END PROMPT *\n|\n[ \t]*# END PROMPT *\n")
 	unittestBeginRegex          = regexp.MustCompile("(?m)^[ \t]*# BEGIN UNITTEST *\n")
 	unittestEndRegex            = regexp.MustCompile("(?m)^[ \t]*# END UNITTEST *")
 	autotestMarkerRegex         = regexp.MustCompile("%autotest|autotest\\(")
@@ -369,20 +369,6 @@ func CleanForStudent(cell *Cell, assignmentMetadata, exerciseMetadata map[string
 		return cell, nil
 	}
 	source := cell.Source
-	prompt := ""
-	if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
-		mend := promptEndRegex.FindStringIndex(source)
-		if mend == nil {
-			return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
-		}
-		if mend[1] < mbeg[0] {
-			return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
-		}
-		prompt = source[mbeg[1]:mend[0]]
-		glog.V(3).Infof("prompt = %q", prompt)
-		source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
-		glog.V(3).Infof("stripped source = %q", source)
-	}
 	if m := testMarkerRegex.FindStringIndex(source); m != nil {
 		// Remove the # TEST marker.
 		source = source[:m[0]] + source[m[1]:]
@@ -398,6 +384,22 @@ func CleanForStudent(cell *Cell, assignmentMetadata, exerciseMetadata map[string
 	if m := solutionMagicRegex.FindStringIndex(source); m != nil {
 		// Strip the line with %%solution magic.
 		source = source[m[1]:]
+		// Extract the prompt, if any.
+		prompt := ""
+		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
+			mend := promptEndRegex.FindStringIndex(source)
+			if mend == nil {
+				return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
+			}
+			if mend[1] < mbeg[0] {
+				return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
+			}
+			prompt = source[mbeg[1]:mend[0]]
+			glog.V(3).Infof("prompt = %q", prompt)
+			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
+			glog.V(3).Infof("stripped source = %q", source)
+		}
+		// Remove the solution.
 		mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1)
 		if mbeg == nil {
 			// No BEGIN/END SOLUTION markers. Just return "..."
@@ -496,20 +498,6 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 		if cell.Type != "code" {
 			return &Cell{Type: cell.Type, Source: source}, nil
 		}
-		prompt := ""
-		if mbeg := promptBeginRegex.FindStringIndex(source); mbeg != nil {
-			mend := promptEndRegex.FindStringIndex(source)
-			if mend == nil {
-				return nil, fmt.Errorf("BEGIN PROMPT has no matching END PROMPT")
-			}
-			if mend[1] < mbeg[0] {
-				return nil, fmt.Errorf("END PROMPT is before BEGIN  PROMPT")
-			}
-			prompt = source[mbeg[1]:mend[0]]
-			glog.V(3).Infof("prompt = %q", prompt)
-			source = strings.Join([]string{source[:mbeg[0]], source[mend[1]:]}, "")
-			glog.V(3).Infof("stripped source = %q", source)
-		}
 		if m := testMarkerRegex.FindStringIndex(source); m != nil {
 			// Remove the # TEST marker.
 			source = source[:m[0]] + source[m[1]:]
@@ -523,46 +511,11 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			return nil, nil
 		}
 		if m := solutionMagicRegex.FindStringIndex(source); m != nil {
-			// Strip the line with %%solution magic.
-			source = source[m[1]:]
-			mbeg := solutionBeginRegex.FindAllStringSubmatchIndex(source, -1)
-			if mbeg == nil {
-				// No BEGIN/END SOLUTION markers. Just return "..."
-				return &Cell{
-					Type:     "code",
-					Metadata: exerciseMetadata,
-					Source:   "...",
-				}, nil
+			clean, err := CleanForStudent(cell, assignmentMetadata, exerciseMetadata)
+			if err != nil {
+				return nil, err
 			}
-			// Match BEGIN SOLUTION to END SOLUTION.
-			mend := solutionEndRegex.FindAllStringIndex(source, -1)
-			if len(mbeg) != len(mend) {
-				return nil, fmt.Errorf("cell has mismatched number of BEGIN SOLUTION and END SOLUTION, %d != %d", len(mbeg), len(mend))
-			}
-			var outputs []string
-			for i, m := range mbeg {
-				if i == 0 {
-					outputs = append(outputs, source[0:m[0]])
-				}
-				// TODO(salikh): Fix indentation and add more heuristics.
-				if prompt == "" {
-					indent := source[m[2]:m[3]]
-					prompt = indent + "..."
-				}
-				outputs = append(outputs, prompt)
-				glog.V(3).Infof("prompt: %q", prompt)
-				if i < len(mbeg)-1 {
-					outputs = append(outputs, source[mend[i][1]:mbeg[i+1][0]])
-				} else {
-					outputs = append(outputs, source[mend[i][1]:])
-					glog.V(3).Infof("last part: %q", source[mend[i][1]:])
-				}
-			}
-			return &Cell{
-				Type:     "code",
-				Metadata: exerciseMetadata,
-				Source:   strings.Join(outputs, ""),
-			}, nil
+			return clean, nil
 		}
 		// Skip # BEGIN UNITTEST, %%submission, %%solution, %autotest and # MASTER ONLY cells.
 		if unittestBeginRegex.MatchString(source) ||
