@@ -1,7 +1,5 @@
 # Pilot - deadline 7/20 (8/8)
 
-> make %%solution cell to display the output
-> save the default solution cell contents to check for trivial untouched submissions
 > save the context separately from the inlinetest
 > wrap inline test in try: ... except AssertionError as e: ...
 > %%inlinetest, %%studenttest magics
@@ -10,6 +8,17 @@
 > generate a template for inline tests automatically
 > support a report for %%inlinetest
 > generate a template file for %%inlinetest in autograder dir
+
+# Next
+
+> make %%solution cell to display the output
+> save the default solution cell contents to check for trivial untouched submissions
+
+# Later
+
+> Run the inline tests with nbconvert to have highest possible fidelity
+  > allow %writefile? -- maybe not a good idea on a r/o filesystem.
+
 
 # Demo 1 - deadline 5/14
 

@@ -221,15 +221,15 @@ func (n *Notebook) Marshal() ([]byte, error) {
 
 // MapCells runs a function on each cell and replaces the cell with the returned values.
 // If mapFunc returns error, the function terminates the iteration and returns the error.
-func (n *Notebook) MapCells(mapFunc func(c *Cell) (*Cell, error)) (*Notebook, error) {
+func (n *Notebook) MapCells(mapFunc func(c *Cell) ([]*Cell, error)) (*Notebook, error) {
 	var out []*Cell
 	for _, cell := range n.Cells {
 		ncell, err := mapFunc(cell)
 		if err != nil {
 			return nil, err
 		}
-		if ncell != nil {
-			out = append(out, ncell)
+		if len(ncell) > 0 {
+			out = append(out, ncell...)
 		}
 	}
 	return &Notebook{
@@ -466,7 +466,7 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 	// Exercise metadata only applies to the next code block,
 	// and is nil otherwise.
 	var exerciseMetadata map[string]interface{}
-	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
+	transformed, err := n.MapCells(func(cell *Cell) ([]*Cell, error) {
 		source := cell.Source
 		if cell.Type == "markdown" {
 			var err error
@@ -496,7 +496,7 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			}
 		}
 		if cell.Type != "code" {
-			return &Cell{Type: cell.Type, Source: source}, nil
+			return []*Cell{&Cell{Type: cell.Type, Source: source}}, nil
 		}
 		if m := testMarkerRegex.FindStringIndex(source); m != nil {
 			// Remove the # TEST marker.
@@ -515,7 +515,7 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			if err != nil {
 				return nil, err
 			}
-			return clean, nil
+			return []*Cell{clean}, nil
 		}
 		// Skip # BEGIN UNITTEST, %%submission, %%solution, %autotest and # MASTER ONLY cells.
 		if unittestBeginRegex.MatchString(source) ||
@@ -527,10 +527,10 @@ func (n *Notebook) ToStudent() (*Notebook, error) {
 			return nil, nil
 		}
 		// Source may have been modified.
-		return &Cell{
+		return []*Cell{&Cell{
 			Type:   "code",
 			Source: source,
-		}, nil
+		}}, nil
 	})
 	if err != nil {
 		return nil, err
@@ -578,7 +578,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 	// but including the student test cells.
 	var globalContext []*Cell
 	var exerciseContext []*Cell
-	transformed, err := n.MapCells(func(cell *Cell) (*Cell, error) {
+	transformed, err := n.MapCells(func(cell *Cell) ([]*Cell, error) {
 		source := cell.Source
 		if cell.Type == "markdown" {
 			var err error
@@ -639,11 +639,11 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				}
 			}
 			// TODO(salikh): Split the context and inline tests into separate files.
-			return &Cell{
+			return []*Cell{&Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", name+"_inline.py", "assignment_id", assignmentID),
 				Source:   strings.Join(parts, "\n") + "\n" + cell.Source,
-			}, nil
+			}}, nil
 		} else if unittestBeginRegex.MatchString(source) {
 			text, err := cutText(unittestBeginRegex, unittestEndRegex, source)
 			if err != nil {
@@ -664,12 +664,23 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			text = strings.Join(imports, "") + text
 			glog.V(3).Infof("metadata: %v, exercise_id: %q", exerciseMetadata, exerciseID)
 			glog.V(3).Infof("parsed unit test: %s\n", text)
-			return &Cell{
+			return []*Cell{&Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
 				Source:   text,
-			}, nil
-		} else if m := solutionMagicRegex.FindStringIndex(source); m == nil {
+			}}, nil
+		} else if m := solutionMagicRegex.FindStringIndex(source); m != nil {
+			clean, err := CleanForStudent(cell, assignmentMetadata, exerciseMetadata)
+			if err != nil {
+				return nil, err
+			}
+			// Store the untouched source cell value.
+			return []*Cell{&Cell{
+				Type:     "code",
+				Metadata: cloneMetadata(exerciseMetadata, "filename", "empty_source.py", "assignment_id", assignmentID),
+				Source:   `source = """` + clean.Source + `"""`,
+			}}, nil
+		} else {
 			// For every non-solution and non-inline test code cell, add it to global
 			// or exercise context (for inline tests).
 			if exerciseID == "" {
@@ -689,7 +700,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			filename := name + ".py"
 			// Cut the magic string.
 			source = source[m[1]:]
-			return &Cell{
+			return []*Cell{&Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", filename, "assignment_id", assignmentID),
 				Source: `
@@ -711,7 +722,7 @@ if __name__ == '__main__':
   tmpl = jinja2.Template(template)
   sys.stdout.write(tmpl.render(results=data['results'], formatted_source=formatted_source, logs=data['logs']))
 `,
-			}, nil
+			}}, nil
 		}
 		// Do not emit other code cells.
 		return nil, nil
