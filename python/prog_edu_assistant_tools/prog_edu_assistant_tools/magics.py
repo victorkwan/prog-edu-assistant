@@ -161,6 +161,62 @@ class MyMagics(magic.Magics):
             self.shell.user_ns[k] = env[k]
 
     @magic.cell_magic
+    def inlinetest(self, line, cell):
+        """Registers an inline test.
+
+        An inline test is a piece of code that can be executed either directly
+        in the Jupyter notebook, or extracted into an automated test that 
+        takes the notebook context into account.
+        """
+
+        name = line
+        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]*', name):
+            raise Exception("%%inlinetest must use an identifier as a name, "
+                            "got %s" % name)
+
+        # Copy the source into the variable 
+        self.shell.user_ns[name] = types.SimpleNamespace(
+            source=cell.rstrip())
+
+        # Capture the changes produced by inline test code in env.
+        env = {}
+        # Note: if inline test throws exception, this breaks the notebook
+        # execution, and this is intended. Inline tests emulate direct
+        # execution of the code.
+        exec(cell, self.shell.user_ns, env)
+        # Copy the modifications into user_ns
+        for k in env:
+            self.shell.user_ns[k] = env[k]
+
+    @magic.cell_magic
+    def studenttest(self, line, cell):
+        """Registers an inline test.
+
+        An inline test is a piece of code that can be executed either directly
+        in the Jupyter notebook, or extracted into an automated test that 
+        takes the notebook context into account.
+        """
+
+        name = line
+        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]*', name):
+            raise Exception("%%studenttest must use an identifier as a name, "
+                            "got %s" % name)
+
+        # Copy the source into the variable 
+        self.shell.user_ns[name] = types.SimpleNamespace(
+            source=cell.rstrip())
+
+        # Capture the changes produced by inline test code in env.
+        env = {}
+        # Note: if inline test throws exception, this breaks the notebook
+        # execution, and this is intended. Inline tests emulate direct
+        # execution of the code.
+        exec(cell, self.shell.user_ns, env)
+        # Copy the modifications into user_ns
+        for k in env:
+            self.shell.user_ns[k] = env[k]
+
+    @magic.cell_magic
     def template(self, line, cell):
         """Registers a template for report generation.
 
