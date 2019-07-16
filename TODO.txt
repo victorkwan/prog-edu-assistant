@@ -1,4 +1,10 @@
-# Pilot - deadline 7/20 (8/8)
+# Demo 1b - deadline 7/17
+
+> working %inlinetest
+> all dataframe exercises finalized
+? deploy to cloud
+
+# Pilot - deadline 7/22 (8/8)
 
 > save the context separately from the inlinetest
 > wrap inline test in try: ... except AssertionError as e: ...
