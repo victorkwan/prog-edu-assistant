@@ -678,7 +678,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			return []*Cell{&Cell{
 				Type:     "code",
 				Metadata: cloneMetadata(exerciseMetadata, "filename", "empty_source.py", "assignment_id", assignmentID),
-				Source:   `source = """` + clean.Source + `"""`,
+				Source:   `source = """` + strings.Replace(clean.Source, `"""`, `\"\"\"`, -1) + `"""`,
 			}}, nil
 		} else {
 			// For every non-solution and non-inline test code cell, add it to global

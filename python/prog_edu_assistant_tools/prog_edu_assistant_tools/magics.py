@@ -13,17 +13,36 @@ import io
 import re
 import types
 import unittest
+import sys
+import io
+
+from contextlib import contextmanager
+from io import StringIO
 
 from IPython.core import display
 from IPython.core import magic
+
 import jinja2
 import pygments
+
 from pygments import formatters
 from pygments import lexers
 
 from prog_edu_assistant_tools import summary_test_result
 
-def autotest(test_class):
+
+@contextmanager
+def CaptureOutput():
+    """Captures the stdout and stderr into StringIO objects."""
+    capture_out, capture_err = StringIO(), StringIO()
+    save_out, save_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = capture_out, capture_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = save_out, save_err
+
+def autotest(test_case):
     """Runs one unit test and returns the test result.
 
     This is a non-magic version of the %autotest.
@@ -32,18 +51,54 @@ def autotest(test_class):
         result, log = autotest(MyTestCase)
 
     Args:
-    * test_class: The name of the unit test class (extends unittest.TestCase).
+    * test_case: The name of the unit test class (extends unittest.TestCase),
+                 or the name of the inline test namespace, defined with
+                 %%inlinetest or %%studenttest.
 
     Returns: A 2-tuple of a SummaryTestResult objct and a string holding verbose
     test logs.
     """
-    suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
-    errors = io.StringIO()
-    result = unittest.TextTestRunner(
-        verbosity=4,
-        stream=errors,
-        resultclass=summary_test_result.SummaryTestResult).run(suite)
-    return result, errors.getvalue()
+    if isinstance(test_case, type) and issubclass(test_case, unittest.TestCase):
+        suite = unittest.TestLoader().loadTestsFromTestCase(test_case)
+        errors = io.StringIO()
+        result = unittest.TextTestRunner(
+            verbosity=4,
+            stream=errors,
+            resultclass=summary_test_result.SummaryTestResult).run(suite)
+        return result, errors.getvalue()
+    elif (isinstance(test_case, types.SimpleNamespace) and
+            test_case.type == 'inlinetest'):
+        errorMessage = None
+        with CaptureOutput() as (out, err):
+            try:
+                env = {}
+                # Assume the context has already been
+                # set up in user_ns.
+                # Exercise the code under test.
+                exec(globals()['submission_source'].source,
+                        globals(), env)
+                # Exercise the inline test.
+                exec(test_case.source, globals(), env)
+            except AssertionError as e:
+                errorMessage = e
+            except Exception as e:
+                errorMessage = e
+        stream = out.getvalue()
+        if len(err.getvalue()) > 0:
+            stream += "\nERROR:\n" + err.getvalue()
+        result = summary_test_result.SummaryTestResult(
+                stream=stream,
+                descriptions=test_case.name,
+                verbosity=1)
+        if errorMessage is not None:
+            result.results['error'] = errorMessage
+            result.results['passed'] = False
+        else:
+            result.results['passed'] = True
+        return result, stream
+    else:
+        raise Exception("Unrecognized autotest argument of class %s" % (test_case.__class__))
+
 
 
 def report(template, **kwargs):
@@ -57,14 +112,48 @@ def report(template, **kwargs):
     `template.render()`.  If `source` keyword argument is present, a
     syntax-highlighted HTML copy of it is additionally passed with
     `formatted_source` keyword argument.
+
+    Args:
+      template - A template earlier defined with %%template magic,
+                 or an inline test. In case of an inline test, the template
+                 is automatically defined to include the source code (if provided)
+                 and the error message from the inline test result.
+
+    Returns:
+      A displayable HTML object.
     """
     if 'source' in kwargs:
         kwargs['formatted_source'] = pygments.highlight(
-            kwargs['source'], lexers.PythonLexer(), formatters.HtmlFormatter())
+            kwargs['source'], lexers.PythonLexer(), formatters.HtmlFormatter()).rstrip()
     # Render the template giving the specified variable as 'results',
     # and render the result as inlined HTML in cell output. 'source' is
     # the prerendered source code.
-    return display.HTML(template.render(**kwargs))
+    if isinstance(template, jinja2.Template):
+        html = template.render(**kwargs)
+    elif isinstance(template, types.SimpleNamespace) and template.type == 'inlinetest':
+        source_template = """
+<h4 style='color: #387;'>Your submission</h4>
+<pre style='background: #F0F0F0; padding: 3pt; margin: 4pt; border: 1pt solid #DDD; border-radius: 3pt;'>{{ formatted_source }}</pre>"""
+        result_template = """
+<h4 style='color: #387;'>Results</h4>
+{% if 'passed' in results and results['passed'] %}
+Looks OK.
+{% elif 'error' in results %}
+{{results['error'] | e}}
+{% else %}
+Something is wrong.
+{% endif %}"""
+        if 'formatted_source' in kwargs:
+            template_source = source_template
+        else:
+            template_source = ''
+        template_source += result_template
+        actual_template = jinja2.Template(template_source)
+        html = actual_template.render(**kwargs)
+    else:
+        raise Exception("Unrecognized template argument of class %s" %
+                (test_case.__class__))
+    return display.HTML(html)
 
 
 # The class MUST call this class decorator at creation time
@@ -94,13 +183,47 @@ class MyMagics(magic.Magics):
           fields are computed as documented in unittest.TestResult.
         """
 
-        suite = unittest.TestLoader().loadTestsFromTestCase(
-            self.shell.ev(line))
-        errors = io.StringIO()
-        result = unittest.TextTestRunner(
-            verbosity=4, stream=errors,
-            resultclass=summary_test_result.SummaryTestResult).run(suite)
-        return result, errors.getvalue()
+        test_case = self.shell.ev(line)
+        if isinstance(test_case, type) and issubclass(test_case, unittest.TestCase):
+            suite = unittest.TestLoader().loadTestsFromTestCase(
+                test_case)
+            errors = io.StringIO()
+            result = unittest.TextTestRunner(
+                verbosity=4, stream=errors,
+                resultclass=summary_test_result.SummaryTestResult).run(suite)
+            return result, errors.getvalue()
+        elif (isinstance(test_case, types.SimpleNamespace) and
+                test_case.type == 'inlinetest'):
+            errorMessage = None
+            with CaptureOutput() as (out, err):
+                try:
+                    env = {}
+                    # Assume the context has already been
+                    # set up in user_ns.
+                    # Exercise the code under test.
+                    exec(self.shell.user_ns['submission_source'].source,
+                            self.shell.user_ns, env)
+                    # Exercise the inline test.
+                    exec(test_case.source, self.shell.user_ns, env)
+                except AssertionError as e:
+                    errorMessage = e
+                except Exception as e:
+                    errorMessage = e
+            stream = out.getvalue()
+            if len(err.getvalue()) > 0:
+                stream += "\nERROR:\n" + err.getvalue()
+            result = summary_test_result.SummaryTestResult(
+                    stream=stream,
+                    descriptions=test_case.name,
+                    verbosity=1)
+            if errorMessage is not None:
+                result.results['error'] = errorMessage
+                result.results['passed'] = False
+            else:
+                result.results['passed'] = True
+            return result, stream
+        else:
+            raise Exception("Unrecognized autotest argument of class %s" % (test_case.__class__))
 
     @magic.cell_magic
     def submission(self, line, cell):
@@ -176,7 +299,7 @@ class MyMagics(magic.Magics):
 
         # Copy the source into the variable 
         self.shell.user_ns[name] = types.SimpleNamespace(
-            source=cell.rstrip())
+            source=cell.rstrip(), type='inlinetest', name=name)
 
         # Capture the changes produced by inline test code in env.
         env = {}
@@ -202,9 +325,11 @@ class MyMagics(magic.Magics):
             raise Exception("%%studenttest must use an identifier as a name, "
                             "got %s" % name)
 
-        # Copy the source into the variable 
+        # Copy the source into the variable. Note: %%studenttest
+        # is the same as %%inlinetest, with the only difference being that
+        # it is preserved in the student notebook.
         self.shell.user_ns[name] = types.SimpleNamespace(
-            source=cell.rstrip())
+            source=cell.rstrip(), type='inlinetest', name=name)
 
         # Capture the changes produced by inline test code in env.
         env = {}
@@ -258,7 +383,7 @@ class MyMagics(magic.Magics):
         results = self.shell.ev(var_name)
         source = self.shell.user_ns['submission_source'].source
         formatted_source = pygments.highlight(source, lexers.PythonLexer(),
-                                              formatters.HtmlFormatter())
+                                              formatters.HtmlFormatter()).rstrip()
         # Render the template giving the specified variable as 'results',
         # and render the result as inlined HTML in cell output. 'source' is
         # the prerendered source code.

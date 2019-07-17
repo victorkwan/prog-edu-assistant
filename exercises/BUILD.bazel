@@ -90,14 +90,22 @@ pkg_tar(
 )
 
 pkg_tar(
+    name = "dataframe-pre1-en-autograder_tar",
+    package_dir = "autograder",
+    strip_prefix = "dataframe-pre1-en-autograder",
+    srcs = [
+      	":dataframe-pre1-en-autograder",
+    ],
+)
+
+pkg_tar(
     name = "student_notebooks_tar",
     strip_prefix = ".",  # This is to prevent directory flattening.
     srcs = [
 	":helloworld-en-student",
 	":oop-en-student",
 	":dataframe-pre1-en-student",
-	":data/tokyo-weather.csv",
-    ],
+    ] + glob(["data/*.csv"]),
 )
 
 #pkg_tar(
