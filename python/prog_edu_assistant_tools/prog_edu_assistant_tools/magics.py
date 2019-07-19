@@ -9,6 +9,7 @@ of master assignment notebooks more convenient. The functionality it provides:
 * Use autotest() and report() functions to run the tests and render
   reports right in the notebook.
 """
+import ast
 import io
 import re
 import types
@@ -276,12 +277,23 @@ class MyMagics(magic.Magics):
         env = {}
         # Note: if solution throws exception, this breaks the notebook
         # execution, and this is intended. Solution must be correct!
-        exec(cell, self.shell.user_ns, env)
+        # Hack: Peel the last expression to eval.
+        ret = None
+        try:
+            block = ast.parse(cell, mode='exec')
+            last_expr = ast.Expression(block.body.pop().value)
+            exec(compile(block, '', mode='exec'), self.shell.user_ns, env)
+            ret = eval(compile(last_expr, '', mode='eval'), self.shell.user_ns, env)
+        except Exception as e:
+            print(e)
+            # Give up on recovering the last value, just execute.
+            exec(cell, self.shell.user_ns, env)
         # Copy the modifications into submission object.
         self.shell.user_ns['submission'] = types.SimpleNamespace(**env)
         # Copy the modifications into user_ns
         for k in env:
             self.shell.user_ns[k] = env[k]
+        return ret
 
     @magic.cell_magic
     def inlinetest(self, line, cell):
