@@ -279,14 +279,22 @@ class MyMagics(magic.Magics):
         # execution, and this is intended. Solution must be correct!
         # Hack: Peel the last expression to eval.
         ret = None
-        try:
-            block = ast.parse(cell, mode='exec')
-            last_expr = ast.Expression(block.body.pop().value)
-            exec(compile(block, '', mode='exec'), self.shell.user_ns, env)
-            ret = eval(compile(last_expr, '', mode='eval'), self.shell.user_ns, env)
-        except Exception as e:
-            print(e)
-            # Give up on recovering the last value, just execute.
+        block = ast.parse(cell, mode='exec')
+        # Check if the last statement of the block is an assignment.
+        if block.body[-1].__class__ != ast.Assign:
+            # If not an assignment, eval last expression as opposed to exec.
+            try:
+                last_expr = ast.Expression(block.body.pop().value)
+                exec(compile(block, '', mode='exec'), self.shell.user_ns, env)
+                ret = eval(compile(last_expr, '', mode='eval'),
+                           self.shell.user_ns, env)
+            except Exception as e:
+                print(e)
+                # Give up on recovering the last value, just execute.
+                exec(cell, self.shell.user_ns, env)
+        else:
+            # Otherwise just exec the whole block and do not bother
+            # about the return value.
             exec(cell, self.shell.user_ns, env)
         # Copy the modifications into submission object.
         self.shell.user_ns['submission'] = types.SimpleNamespace(**env)
