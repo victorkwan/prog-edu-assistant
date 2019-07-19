@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/golang/glog"
 	"github.com/google/prog-edu-assistant/notebook"
@@ -44,6 +45,97 @@ func New(dir string) *Autograder {
 		NSJailPath: "/usr/local/bin/nsjail",
 		PythonPath: "/usr/bin/python",
 	}
+}
+
+type InlineTestFill struct {
+	Context    string
+	Submission string
+	Inline     string
+}
+
+// The output format uses double braces to facilitate parsing
+// of the output by regexps.
+var inlineTestTmpl = template.Must(template.New("inlinetest").Parse(`
+try:
+  {{.Context}}
+except Exception as e:
+  print("\nWhile executing context: ERROR{{"{{"}}%s{{"}}"}}" % e)
+try:
+  {{.Submission}}
+except Exception as e:
+  print("\nWhile executing submission: ERROR{{"{{"}}%s{{"}}"}}" % e)
+try:
+  {{.Inline}}
+  print("OK{{"{{}}"}}")
+except AssertionError as e:
+  print("\nWhile executing inline test: FAIL{{"{{"}}%s{{"}}"}}" % str(e))
+except Exception as e:
+  print("\nWhile executing inline test: ERROR{{"{{"}}%s{{"}}"}}" % e)
+`))
+
+func generateInlineTest(context, submission, test string) ([]byte, error) {
+	var output bytes.Buffer
+	err := inlineTestTmpl.Execute(&output, &InlineTestFill{
+		// Indent the parts by two spaces to match the template.
+		Context:    strings.ReplaceAll(context, "\n", "\n  "),
+		Submission: strings.ReplaceAll(submission, "\n", "\n  "),
+		Inline:     strings.ReplaceAll(test, "\n", "\n  "),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}
+
+// CreateScratchDir takes the submitted contents of a solution cell,
+// the source exercise directory and sets up the scratch directory
+// for autograding.
+func (ag *Autograder) CreateScratchDir(exerciseDir, scratchDir string, submission []byte) error {
+	err := CopyDirFiles(exerciseDir, scratchDir)
+	if err != nil {
+		return fmt.Errorf("error copying autograder scripts from %q to %q: %s", exerciseDir, scratchDir, err)
+	}
+	// TODO(salikh): Implement proper scratch management with overlayfs.
+	filename := filepath.Join(scratchDir, "submission.py")
+	err = ioutil.WriteFile(filename, submission, 0775)
+	if err != nil {
+		return fmt.Errorf("error writing to %q: %s", filename, err)
+	}
+	filename = filepath.Join(scratchDir, "submission_source.py")
+	content := bytes.Join([][]byte{[]byte(`source = """`),
+		bytes.ReplaceAll(submission, []byte(`"""`), []byte(`\"\"\"`)), []byte(`"""`)}, nil)
+	err = ioutil.WriteFile(filename, content, 0775)
+	if err != nil {
+		return fmt.Errorf("error writing to %q: %s", filename, err)
+	}
+	// Synthesize the inline tests.
+	pattern := filepath.Join(exerciseDir, "*_inline.py")
+	inlinetests, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("error in filepath.Glob(%q): %s", pattern, err)
+	}
+	for _, inlineTestFilename := range inlinetests {
+		contextFilename := strings.ReplaceAll(inlineTestFilename, "_inline.py", "_context.py")
+		contextContent, err := ioutil.ReadFile(contextFilename)
+		if err != nil {
+			return fmt.Errorf("error reading context file %q: %s", contextFilename, err)
+		}
+		testContent, err := ioutil.ReadFile(inlineTestFilename)
+		if err != nil {
+			return fmt.Errorf("error reading inline test file %q: %s", inlineTestFilename, err)
+		}
+		output, err := generateInlineTest(string(contextContent), string(submission), string(testContent))
+		if err != nil {
+			return fmt.Errorf("error generating inline test from template: %s", err)
+		}
+		outputFilename := filepath.Join(scratchDir,
+			strings.ReplaceAll(filepath.Base(inlineTestFilename), "_inline.py", "_inlinetest.py"))
+		err = ioutil.WriteFile(outputFilename, output, 0775)
+		if err != nil {
+			return fmt.Errorf("error writing the inline test file %q: %s", outputFilename, err)
+		}
+	}
+	return nil
 }
 
 // Grade takes a byte blob, tries to parse it as JSON, then tries to extract
@@ -109,6 +201,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		}
 		v, ok := cell.Metadata["exercise_id"]
 		if !ok {
+			// Skip all non-solution cells.
 			continue
 		}
 		exerciseID, ok := v.(string)
@@ -126,20 +219,10 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			return nil, fmt.Errorf("%q is not a directory", exerciseDir)
 		}
 		scratchDir := filepath.Join(baseScratchDir, exerciseID)
-		err := CopyDirFiles(exerciseDir, scratchDir)
+		glog.Infof("scratch dir: %s", scratchDir)
+		err := ag.CreateScratchDir(exerciseDir, scratchDir, []byte(cell.Source))
 		if err != nil {
-			return nil, fmt.Errorf("error copying autograder scripts from %q to %q: %s", exerciseDir, scratchDir, err)
-		}
-		// TODO(salikh): Implement proper scratch management with overlayfs.
-		filename := filepath.Join(scratchDir, "submission.py")
-		err = ioutil.WriteFile(filename, []byte(cell.Source), 0775)
-		if err != nil {
-			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
-		}
-		filename = filepath.Join(scratchDir, "submission_source.py")
-		err = ioutil.WriteFile(filename, []byte(`source = """`+cell.Source+`"""`), 0775)
-		if err != nil {
-			return nil, fmt.Errorf("error writing to %q: %s", filename, err)
+			return nil, fmt.Errorf("error creating scratch dir %s: %s", scratchDir, err)
 		}
 		glog.V(3).Infof("Running tests in directory %s", scratchDir)
 		outcomes, logs, err := ag.RunUnitTests(scratchDir)
