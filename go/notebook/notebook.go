@@ -629,7 +629,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			source = source[m[1]:]
 			var parts []string
 			// Create an inline test.
-			for _, c := range append(globalContext, exerciseContext...) {
+			for _, c := range globalContext {
 				// Create a clean student version of a code cell.
 				clean, err := CleanForStudent(c, assignmentMetadata, exerciseMetadata)
 				if err != nil {
@@ -697,7 +697,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				// Before the first exercise, append to global context.
 				globalContext = append(globalContext, cell)
 			} else {
-				// After an exercise, append to the exercise context.
+				// After an exercise ID is set, append to the exercise context.
 				exerciseContext = append(exerciseContext, cell)
 			}
 		}
