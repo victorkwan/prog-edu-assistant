@@ -625,6 +625,8 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 		if m := inlineOrStudentTestRegex.FindStringSubmatchIndex(source); m != nil {
 			// Extract the inline test name.
 			name := source[m[2]:m[3]]
+			// Peel off the magic string.
+			source = source[m[1]:]
 			var parts []string
 			// Create an inline test.
 			for _, c := range append(globalContext, exerciseContext...) {
@@ -638,12 +640,20 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 					parts = append(parts, clean.Source)
 				}
 			}
-			// TODO(salikh): Split the context and inline tests into separate files.
-			return []*Cell{&Cell{
-				Type:     "code",
-				Metadata: cloneMetadata(exerciseMetadata, "filename", name+"_inline.py", "assignment_id", assignmentID),
-				Source:   strings.Join(parts, "\n") + "\n" + cell.Source,
-			}}, nil
+			return []*Cell{
+				// Store the context and the inline test itself into separate files,
+				// which will be used by the autograder to synthesize a complete inline test.
+				&Cell{
+					Type:     "code",
+					Metadata: cloneMetadata(exerciseMetadata, "filename", name+"_context.py", "assignment_id", assignmentID),
+					Source:   strings.Join(parts, "\n") + "\n",
+				},
+				&Cell{
+					Type:     "code",
+					Metadata: cloneMetadata(exerciseMetadata, "filename", name+"_inline.py", "assignment_id", assignmentID),
+					Source:   source + "\n",
+				},
+			}, nil
 		} else if unittestBeginRegex.MatchString(source) {
 			text, err := cutText(unittestBeginRegex, unittestEndRegex, source)
 			if err != nil {
