@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	htmltemplate "html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -138,6 +139,15 @@ func (ag *Autograder) CreateScratchDir(exerciseDir, scratchDir string, submissio
 	return nil
 }
 
+func joinInlineReports(inlineReports map[string]string) string {
+	var parts []string
+	for name, report := range inlineReports {
+		parts = append(parts, "<h4 style='color: #387;'>"+name+"</h4>")
+		parts = append(parts, report)
+	}
+	return strings.Join(parts, "\n")
+}
+
 // Grade takes a byte blob, tries to parse it as JSON, then tries to extract
 // the metadata and match it to the available corpus of autograder scripts.
 // If found, it then proceeds to run all autograder scripts under nsjail,
@@ -195,6 +205,11 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making dir %q: %s", baseScratchDir, err)
 	}
+	if !ag.DisableCleanup {
+		defer func() {
+			_ = os.RemoveAll(baseScratchDir)
+		}()
+	}
 	for _, cell := range n.Cells {
 		if cell.Metadata == nil {
 			continue
@@ -227,18 +242,36 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		glog.V(3).Infof("Running tests in directory %s", scratchDir)
 		outcomes, logs, err := ag.RunUnitTests(scratchDir)
 		if err != nil {
-			return nil, fmt.Errorf("error running unit tests in %q: %s", exerciseDir, err)
+			return nil, fmt.Errorf("error running unit tests in %q: %s", scratchDir, err)
+		}
+		inlineOutcomes, inlineLogs, inlineReports, err := ag.RunInlineTests(scratchDir)
+		if err != nil {
+			return nil, fmt.Errorf("error running inline tests in %q: %s", scratchDir, err)
+		}
+		mergedOutcomes := make(map[string]interface{})
+		mergedLogs := make(map[string]string)
+		for k, v := range outcomes {
+			mergedOutcomes[k] = v
+		}
+		for k, v := range inlineOutcomes {
+			mergedOutcomes[k] = v
+		}
+		for k, v := range logs {
+			mergedLogs[k] = v
+		}
+		for k, v := range inlineLogs {
+			mergedLogs[k] = v
 		}
 		// Small data for the report generation.
-		data := map[string]interface{}{
-			"results": outcomes,
-			"logs":    logs,
+		outcomeData := map[string]interface{}{
+			"results": mergedOutcomes,
+			"logs":    mergedLogs,
 		}
-		report, err := ag.RenderReports(scratchDir, data)
+		report, err := ag.RenderReports(scratchDir, outcomeData)
 		if err != nil {
 			return nil, err
 		}
-		allReports[exerciseID] = string(report)
+		allReports[exerciseID] = string(report) + joinInlineReports(inlineReports)
 		allLogs[exerciseID] = logs
 		for k, v := range outcomes {
 			_, ok := allOutcomes[k]
@@ -247,9 +280,6 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 			}
 			allOutcomes[k] = v
 		}
-	}
-	if !ag.DisableCleanup {
-		_ = os.RemoveAll(baseScratchDir)
 	}
 	result := make(map[string]interface{})
 	result["assignment_id"] = assignmentID
@@ -346,6 +376,128 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]bool, map[string]stri
 		}
 	}
 	return outcomes, logs, nil
+}
+
+var inlineOutcomeRegex = regexp.MustCompile(`(OK|ERROR|FAIL){{((?:[^}]|}[^}])*)}}`)
+
+type inlineReportFill struct {
+	Passed bool
+	Error  string
+}
+
+var inlineReportTmpl = htmltemplate.Must(htmltemplate.New("inlinereport").Parse(
+	`{{if .Passed}}
+Looks OK.
+{{else}}
+{{.Error}}
+{{end}}
+`))
+
+// RunInlineTests runs all inline tests in a scratch directory found by a glob
+// *_inlinetest.py.
+// Returns
+// - outcomes map[string]interface{}
+// - logs map[string]string
+// - reports map[string]string
+func (ag *Autograder) RunInlineTests(dir string) (map[string]interface{}, map[string]string, map[string]string, error) {
+	glog.V(3).Infof("RunInlineTests(%s)", dir)
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error getting abs path for %q: %s", dir, err)
+	}
+	err = os.Chdir(dir)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error on chdir %q: %s", dir, err)
+	}
+	fss, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error on listing %q: %s", dir, err)
+	}
+	outcomes := make(map[string]interface{})
+	reports := make(map[string]string)
+	logs := make(map[string]string)
+	for _, fs := range fss {
+		filename := fs.Name()
+		if !strings.HasSuffix(filename, "_inlinetest.py") {
+			continue
+		}
+		fileOutcome := make(map[string]interface{})
+		outcomes[filename] = fileOutcome
+		cmd := exec.Command(ag.NSJailPath,
+			"-Mo",
+			// NSJail does not work under docker without these disable flags.
+			"--disable_clone_newcgroup",
+			"--disable_clone_newipc",
+			"--disable_clone_newnet",
+			"--disable_clone_newns",
+			"--disable_clone_newpid",
+			"--disable_clone_newuser",
+			"--disable_clone_newuts",
+			"--disable_no_new_privs",
+			"--time_limit", "3",
+			"--max_cpus", "1",
+			"--rlimit_as", "700",
+			"--env", "LANG=en_US.UTF-8",
+			"--disable_proc",
+			//"--chroot", "/",
+			"--cwd", dir,
+			"--user", "nobody",
+			"--group", "nogroup",
+			"--iface_no_lo",
+			"--",
+			ag.PythonPath,
+			fs.Name())
+		glog.V(5).Infof("about to execute %s %q", cmd.Path, cmd.Args)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if _, ok := err.(*exec.ExitError); !ok {
+				return nil, nil, nil, fmt.Errorf("error running unit test command %q %q: %s", cmd.Path, cmd.Args, err)
+			}
+			// Overall status was non-ok.
+			fileOutcome["run"] = false
+		} else {
+			// The file was run successfully.
+			fileOutcome["run"] = true
+		}
+		logs[filename] = string(out)
+		mm := inlineOutcomeRegex.FindAllSubmatch(out, -1)
+		if len(mm) == 0 {
+			// Cannot find any individual test case outcomes.
+			fileOutcome["passed"] = false
+			continue
+		}
+		var reportBuf bytes.Buffer
+		for _, m := range mm {
+			status := string(m[0])
+			message := string(m[1])
+			if status == "OK" {
+				if _, ok := fileOutcome["passed"]; !ok {
+					fileOutcome["passed"] = true
+				}
+			} else {
+				fileOutcome["passed"] = false
+			}
+			if status == "ERROR" {
+				message = "Internal test error: " + message
+			}
+			if message != "" {
+				if old, ok := fileOutcome["error"]; ok {
+					fileOutcome["error"] = old.(string) + "\n" + message
+				} else {
+					fileOutcome["error"] = message
+				}
+			}
+			err := inlineReportTmpl.Execute(&reportBuf, &inlineReportFill{
+				Passed: status == "OK",
+				Error:  message,
+			})
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		}
+		reports[filename] = reportBuf.String()
+	}
+	return outcomes, logs, reports, nil
 }
 
 // RenderReports looks for report templates in the specified scratch dir and renders all reports.
