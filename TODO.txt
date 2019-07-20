@@ -6,9 +6,11 @@
 
 # Pilot - deadline 7/22 (8/8)
 
-> save the context separately from the inlinetest
-> wrap inline test in try: ... except AssertionError as e: ...
-> %%inlinetest, %%studenttest magics
+* save the context separately from the inlinetest
+* wrap inline test in try: ... except AssertionError as e: ...
+* %%inlinetest, %%studenttest magics
+* make %%solution cell to display the output
+* save the default solution cell contents to check for trivial untouched submissions
 > support %%inline test in autotest()
 > produce an outcome vector in %%inlinetest
 > generate a template for inline tests automatically
@@ -17,8 +19,6 @@
 
 # Next
 
-> make %%solution cell to display the output
-> save the default solution cell contents to check for trivial untouched submissions
 
 # Later
 
