@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/golang/glog"
@@ -222,19 +223,27 @@ function refresh(t) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<title>Report for %s</title>`, basename)
-	if v, ok := data["reports"]; ok {
-		reports, ok := v.(map[string]interface{})
+	var exerciseIDs []string
+	var reports = make(map[string]string)
+	// Extract reports
+	for exerciseID, x := range data {
+		m, ok := x.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("expected reports to be map[string]interface{}, got %s", reflect.TypeOf(v))
+			continue
 		}
-		// Just concatenate all reports.
-		for exercise_id, report := range reports {
-			fmt.Fprintf(w, "<h2>%s</h2>", exercise_id)
+		if report, ok := m["report"]; ok {
 			html, ok := report.(string)
 			if !ok {
 				return fmt.Errorf("expected report to be a string, got %s", reflect.TypeOf(report))
 			}
-			fmt.Fprint(w, html)
+			reports[exerciseID] = html
+			exerciseIDs = append(exerciseIDs, exerciseID)
+		}
+		sort.Strings(exerciseIDs)
+		// Just concatenate all reports in order.
+		for _, exerciseID := range exerciseIDs {
+			fmt.Fprintf(w, "<h2>%s</h2>", exerciseID)
+			fmt.Fprint(w, reports[exerciseID])
 		}
 	}
 	return nil
