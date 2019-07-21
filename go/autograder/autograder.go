@@ -324,9 +324,9 @@ func (ag *Autograder) GradeExercise(exerciseDir, scratchDir, submission string) 
 	}
 	// The data object for the report generation.
 	outcomeData := map[string]interface{}{
-		"outcomes": mergedOutcomes,
-		"logs":     mergedLogs,
-		"reports":  inlineReports,
+		"results": mergedOutcomes,
+		"logs":    mergedLogs,
+		"reports": inlineReports,
 	}
 	report, err := ag.RenderReports(scratchDir, outcomeData)
 	if err != nil {
