@@ -283,6 +283,17 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 // Note: this function does not do any cleanup assuming that the caller will delete
 // the base scratch directory.
 func (ag *Autograder) GradeExercise(exerciseDir, scratchDir, submission string) (map[string]interface{}, error) {
+	// Check whether the submission is not trivial.
+	filename := filepath.Join(exerciseDir, "empty_submission.py")
+	if b, err := ioutil.ReadFile(filename); err == nil {
+		if string(b) == submission {
+			// The submission is not changed from the default state.
+			exerciseName := filepath.Base(exerciseDir)
+			return map[string]interface{}{
+				"report": fmt.Sprintf("Exercise %s is not submitted", exerciseName),
+			}, nil
+		}
+	}
 	glog.Infof("exercise scratch dir: %s", scratchDir)
 	err := ag.CreateScratchDir(exerciseDir, scratchDir, []byte(submission))
 	if err != nil {
