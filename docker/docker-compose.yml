@@ -20,7 +20,7 @@ services:
     #entrypoint: ['/app/go/cmd/uploadserver/docker.binary.runfiles/__main__/go/cmd/uploadserver/linux_amd64_stripped/docker.binary', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-allow_cors_origin', 'http://localhost:8888/', '-upload_dir', '/tmp']
   worker:
     image: worker:latest
-    entrypoint: ['/usr/local/bin/worker', '-scratch_dir', '/tmp', '-autograder_dir', '/autograder', '-logtostderr', '-v', '5', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-python_path', '/usr/bin/python']
+    entrypoint: ['/usr/local/bin/worker', '-scratch_dir', '/tmp', '-autograder_dir', '/autograder', '-logtostderr', '-v', '5', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-python_path', '/usr/bin/python', '-disable_cleanup', '-auto_remove']
     tmpfs: /tmp
     read_only: true
     #image: bazel/go/cmd/worker:docker
