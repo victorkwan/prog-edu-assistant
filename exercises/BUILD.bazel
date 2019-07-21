@@ -78,6 +78,7 @@ load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
 pkg_tar(
     name = "helloworld-en-autograder_tar",
     srcs = [":helloworld-en-autograder"],
+    mode = "755",
     package_dir = "autograder",
     strip_prefix = "helloworld-en-autograder",
 )
@@ -85,21 +86,52 @@ pkg_tar(
 pkg_tar(
     name = "oop-en-autograder_tar",
     srcs = [":oop-en-autograder"],
+    mode = "755",
     package_dir = "autograder",
     strip_prefix = "oop-en-autograder",
+)
+
+filegroup(
+    name = "data_dir",
+    srcs = glob(["data/*.csv"]),
 )
 
 pkg_tar(
     name = "dataframe-pre1-en-autograder_tar",
     package_dir = "autograder",
+    mode = "755",
     strip_prefix = "dataframe-pre1-en-autograder",
+    remap_paths = {
+	"exercises": "DataFrame1/CreateDataFrameFromText",
+    },
     srcs = [
       	":dataframe-pre1-en-autograder",
+	":data_dir",
+    ]
+)
+
+pkg_tar(
+    name = "autograder_tar",
+    mode = "755",
+    deps = [
+	":dataframe-pre1-en-autograder_tar",
+	":oop-en-autograder_tar",
+	":helloworld-en-autograder_tar",
+    ],
+)
+
+pkg_tar(
+    name = "tmp-autograder_tar",
+    mode = "755",
+    package_dir = "tmp",
+    deps = [
+	":autograder_tar",
     ],
 )
 
 pkg_tar(
     name = "student_notebooks_tar",
+    mode = "755",
     strip_prefix = ".",  # This is to prevent directory flattening.
     srcs = [
 	":helloworld-en-student",
@@ -110,6 +142,7 @@ pkg_tar(
 
 #pkg_tar(
 #    name = "nsjail_tar",
+#    mode = "755",
 #    srcs = [":nsjail"],
 #    package_dir = "usr/local/bin",
 #)
@@ -124,6 +157,7 @@ container_image(
     tars = [
         ":helloworld-en-autograder_tar",
         ":oop-en-autograder_tar",
+	":dataframe-pre1-en-autograder_tar",
         #":nsjail_tar"
     ],
     visibility = ["//visibility:public"],
