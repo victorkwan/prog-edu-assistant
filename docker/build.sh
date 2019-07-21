@@ -17,10 +17,8 @@ set -e
 
 @execute cd "$DIR/../"
 @execute bazel build ...
-@execute rm -rf "$DIR/worker/autograder" && mkdir "$DIR/worker/autograder"
-for i in bazel-genfiles/exercises/*-autograder; do
-  @execute cp -rL "$i"/* "$DIR/worker/autograder/"
-done
+@execute rm -rf "$DIR/worker/autograder"
+@execute tar xvf bazel-genfiles/exercises/autograder_image-layer.tar -C "$DIR/worker"
 @execute rm -rf "$DIR/worker/bin" && mkdir "$DIR/worker/bin"
 @execute cp -L "bazel-bin/go/cmd/worker/linux_amd64_stripped/worker" "$DIR/worker/bin"
 @execute rm -rf "$DIR/server/bin" && mkdir "$DIR/server/bin"
