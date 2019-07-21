@@ -266,7 +266,7 @@ class MyTest(unittest.TestCase):
 		{
 			name:  "Studenttest1",
 			input: []string{"context1", "context2", "%%studenttest A\ninline1\ninline2"},
-			want:  []string{"context1\ncontext2\n", "inline1\ninline2\n"},
+			want:  []string{},
 		},
 	}
 	for _, tt := range tests {

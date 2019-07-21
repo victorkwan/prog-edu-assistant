@@ -622,7 +622,7 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 			// We do not need to emit non-code cells.
 			return nil, nil
 		}
-		if m := inlineOrStudentTestRegex.FindStringSubmatchIndex(source); m != nil {
+		if m := inlineTestRegex.FindStringSubmatchIndex(source); m != nil {
 			// Extract the inline test name.
 			name := source[m[2]:m[3]]
 			// Peel off the magic string.
