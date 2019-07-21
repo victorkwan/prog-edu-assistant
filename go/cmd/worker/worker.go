@@ -39,6 +39,9 @@ var (
 		"The path to python binary.")
 	disableCleanup = flag.Bool("disable_cleanup", false,
 		"If true, autograder will not delete scratch directory on success.")
+	autoRemove = flag.Bool("auto_remove", false,
+		"If true, removes the scratch directory before creating a new one. "+
+			"This is useful together with --disable_cleanup.")
 )
 
 func main() {
@@ -63,6 +66,7 @@ func run() error {
 	ag.PythonPath = *pythonPath
 	ag.ScratchDir = *scratchDir
 	ag.DisableCleanup = *disableCleanup
+	ag.AutoRemove = *autoRemove
 	// Exponential backoff on connecting to the message queue.
 	delay := 500 * time.Millisecond
 	retryUntil := time.Now().Add(60 * time.Second)
