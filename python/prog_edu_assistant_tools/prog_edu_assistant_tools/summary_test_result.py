@@ -11,8 +11,8 @@ import unittest
 class SummaryTestResult(unittest.TextTestResult):
     """A small extension of TextTestResult that also collects a map of test statuses.
 
-    result.results is a map from test name (string) to boolean: True(passed) or
-    False(failed or error)
+    result.results is a map from test class name (string) to the map of test
+    case name (string) to boolean: True(passed) or False(failed or error).
   """
 
     separator1 = "=" * 70
@@ -39,6 +39,15 @@ class SummaryTestResult(unittest.TextTestResult):
         return unittest.util.strclass(test.__class__).replace(
             "__main__.", "") + "." + test._testMethodName
 
+    def testClassName(self, test):
+        "A helper function to report the test class name."
+        return unittest.util.strclass(test.__class__).replace(
+            "__main__.", "")
+
+    def testMethodName(self, test):
+        "A helper function to report the test case method name."
+        return test._testMethodName
+
     def getDescription(self, test):
         doc_first_line = test.shortDescription()
         if self.descriptions and doc_first_line:
@@ -60,7 +69,11 @@ class SummaryTestResult(unittest.TextTestResult):
         elif self.dots:
             self.stream.write(".")
             self.stream.flush()
-        self.results[self.testName(test)] = True
+        if self.testClassName(test) not in self.results:
+            self.results[self.testClassName(test)] = {}
+        self.results[self.testClassName(test)][self.testMethodName(test)] = True
+        if 'passed' not in self.results[self.testClassName(test)]:
+            self.results[self.testClassName(test)]['passed'] = True
 
     def addError(self, test, err):
         super().addError(test, err)
@@ -69,7 +82,10 @@ class SummaryTestResult(unittest.TextTestResult):
         elif self.dots:
             self.stream.write("E")
             self.stream.flush()
-        self.results[self.testName(test)] = False
+        if self.testClassName(test) not in self.results:
+            self.results[self.testClassName(test)] = {}
+        self.results[self.testClassName(test)][self.testMethodName(test)] = False
+        self.results[self.testClassName(test)]['passed'] = False
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
@@ -78,7 +94,10 @@ class SummaryTestResult(unittest.TextTestResult):
         elif self.dots:
             self.stream.write("F")
             self.stream.flush()
-        self.results[self.testName(test)] = False
+        if self.testClassName(test) not in self.results:
+            self.results[self.testClassName(test)] = {}
+        self.results[self.testClassName(test)][self.testMethodName(test)] = False
+        self.results[self.testClassName(test)]['passed'] = False
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
