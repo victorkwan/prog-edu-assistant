@@ -685,11 +685,22 @@ func (n *Notebook) ToAutograder() (*Notebook, error) {
 				return nil, err
 			}
 			// Store the untouched source cell value.
-			return []*Cell{&Cell{
-				Type:     "code",
-				Metadata: cloneMetadata(exerciseMetadata, "filename", "empty_source.py", "assignment_id", assignmentID),
-				Source:   `source = """` + strings.Replace(clean.Source, `"""`, `\"\"\"`, -1) + `"""`,
-			}}, nil
+			return []*Cell{
+				// empty_source.py is an easy way to access empty submission content
+				// from python code by referencing empty_source.source.
+				&Cell{
+					Type:     "code",
+					Metadata: cloneMetadata(exerciseMetadata, "filename", "empty_source.py", "assignment_id", assignmentID),
+					Source:   `source = """` + strings.Replace(clean.Source, `"""`, `\"\"\"`, -1) + `"""`,
+				},
+				// empty_submission.py is a plain file containing the empty submission
+				// content as is. This is easier to read from Go server.
+				&Cell{
+					Type:     "code",
+					Metadata: cloneMetadata(exerciseMetadata, "filename", "empty_submission.py", "assignment_id", assignmentID),
+					Source:   clean.Source,
+				},
+			}, nil
 		} else {
 			// For every non-solution and non-inline test code cell, add it to global
 			// or exercise context (for inline tests).

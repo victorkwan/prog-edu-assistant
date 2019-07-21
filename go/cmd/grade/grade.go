@@ -26,7 +26,9 @@ var (
 	autograderDir = flag.String("autograder_dir", "",
 		"The root directory of autograder scripts.")
 	nsjailPath = flag.String("nsjail_path", "/usr/local/bin/nsjail",
-		"The path to nsjail.")
+		"The path to nsjail binary.")
+	pythonPath = flag.String("python_path", "/usr/bin/python3",
+		"The path to python binary.")
 	scratchDir = flag.String("scratch_dir", "/tmp/autograde",
 		"The base directory to create scratch directories for autograding.")
 	disableCleanup = flag.Bool("disable_cleanup", false,
@@ -78,6 +80,7 @@ func run() error {
 	ag := autograder.New(dir)
 	ag.ScratchDir = *scratchDir
 	ag.NSJailPath = *nsjailPath
+	ag.PythonPath = *pythonPath
 	ag.DisableCleanup = *disableCleanup
 	for _, filename := range flag.Args() {
 		b, err := ioutil.ReadFile(filename)
