@@ -36,6 +36,9 @@ type Autograder struct {
 	PythonPath string
 	// DisableCleanup instructs the autograder not to delete the scratch directory.
 	DisableCleanup bool
+	// AutoRemove instructs the autograder to delete the scratch directory path
+	// before creating a new one. This is useful together with DisableCleanup.
+	AutoRemove bool
 }
 
 // New creates a new autograder instance given the autograder directory.
@@ -202,9 +205,18 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		return nil, fmt.Errorf("error parsing the submitted blob as Jupyter notebook: %s", err)
 	}
 	baseScratchDir := filepath.Join(ag.ScratchDir, submissionID)
-	_, err = os.Stat(baseScratchDir)
-	if err == nil {
-		return nil, fmt.Errorf("scratch dir %q already exists", baseScratchDir)
+	if ag.AutoRemove {
+		// Remove the scratch dir if it exists.
+		err = os.RemoveAll(baseScratchDir)
+		if err != nil {
+			return nil, fmt.Errorf("error removing %q: %s", baseScratchDir, err)
+		}
+	} else {
+		// Check that scratch dir does not exist.
+		_, err = os.Stat(baseScratchDir)
+		if err == nil {
+			return nil, fmt.Errorf("scratch dir %q already exists", baseScratchDir)
+		}
 	}
 	err = os.MkdirAll(baseScratchDir, 0755)
 	if err != nil {
@@ -616,7 +628,12 @@ func CopyDirFiles(src, dest string) error {
 	}
 	for _, fs := range fss {
 		if fs.IsDir() {
-			return fmt.Errorf(" CopyDirFiles: copying dirs recursively not implemented (%s/%s)", src, fs.Name())
+			// Symlink the directory into the scratch directory.
+			err := os.Symlink(filepath.Join(src, fs.Name()), filepath.Join(dest, fs.Name()))
+			if err != nil {
+				return fmt.Errorf("CopyDirFiles: error symlinking %s to %s: %s", fs.Name(), dest, err)
+			}
+			continue
 		}
 		filename := filepath.Join(src, fs.Name())
 		b, err := ioutil.ReadFile(filename)

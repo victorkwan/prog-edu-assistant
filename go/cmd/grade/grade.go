@@ -33,6 +33,9 @@ var (
 		"The base directory to create scratch directories for autograding.")
 	disableCleanup = flag.Bool("disable_cleanup", false,
 		"If true, does not delete scratch directory after running the tests.")
+	autoRemove = flag.Bool("auto_remove", false,
+		"If true, removes the scratch directory before creating a new one. "+
+			"This is useful together with --disable_cleanup.")
 	submissionID = flag.String("submission_id", "dummy",
 		"The submission id.")
 )
@@ -82,6 +85,7 @@ func run() error {
 	ag.NSJailPath = *nsjailPath
 	ag.PythonPath = *pythonPath
 	ag.DisableCleanup = *disableCleanup
+	ag.AutoRemove = *autoRemove
 	for _, filename := range flag.Args() {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
