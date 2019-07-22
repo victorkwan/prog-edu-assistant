@@ -140,6 +140,16 @@ pkg_tar(
     ] + glob(["data/*.csv"]),
 )
 
+pkg_tar(
+    name = "tmp-student_notebooks_tar",
+    mode = "644",
+    strip_prefix = ".",  # This is to prevent directory flattening.
+    package_dir = "tmp",
+    deps = [
+	":student_notebooks_tar",
+    ],
+)
+
 #pkg_tar(
 #    name = "nsjail_tar",
 #    srcs = [":nsjail"],
