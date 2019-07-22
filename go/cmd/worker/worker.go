@@ -10,8 +10,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"os"
 	"path/filepath"
@@ -96,8 +99,35 @@ func run() error {
 		glog.V(5).Infof("Received %d bytes: %s", len(b), string(b))
 		report, err := ag.Grade(b)
 		if err != nil {
-			// TODO(salikh): Add remote logging and monitoring.
+			// TODO(salikh): Add monitoring.
 			log.Println(err)
+			errId, ok := err.(*autograder.ErrorWithId)
+			if !ok {
+				continue
+			}
+			// Report the error back to the user.
+			var buf bytes.Buffer
+			err := errorTmpl.Execute(&buf, err.Error())
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			report := map[string]interface{}{
+				"submission_id": errId.SubmissionID,
+				"Report": map[string]interface{}{
+					"report": buf.String(),
+				},
+			}
+			b, err := json.MarshalIndent(report, "", "  ")
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			err = q.Post(*reportQueue, b)
+			if err != nil {
+				log.Println(err)
+			}
+			continue
 		}
 		glog.V(3).Infof("Grade result %d bytes: %s", len(report), string(report))
 		err = q.Post(*reportQueue, report)
@@ -107,3 +137,7 @@ func run() error {
 	}
 	return nil
 }
+
+var errorTmpl = template.Must(template.New("errortemplate").Parse(`
+<h2 style='color: red'>Checker Error</h2>
+<pre>{{.}}</pre>`))

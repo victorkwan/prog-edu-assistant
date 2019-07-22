@@ -155,6 +155,22 @@ func joinInlineReports(inlineReports map[string]string) string {
 	return strings.Join(parts, "\n")
 }
 
+type ErrorWithId struct {
+	SubmissionID string
+	Err          error
+}
+
+func (err *ErrorWithId) Error() string {
+	return err.Err.Error()
+}
+
+func idErrorf(id string, f string, args ...interface{}) error {
+	return &ErrorWithId{
+		SubmissionID: id,
+		Err:          fmt.Errorf(f, args...),
+	}
+}
+
 // Grade takes a byte blob, tries to parse it as JSON, then tries to extract
 // the metadata and match it to the available corpus of autograder scripts.
 // If found, it then proceeds to run all autograder scripts under nsjail,
@@ -184,43 +200,43 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	}
 	v, ok = metadata["assignment_id"]
 	if !ok {
-		return nil, fmt.Errorf("metadata does not have assignment_id")
+		return nil, idErrorf(submissionID, "metadata does not have assignment_id")
 	}
 	assignmentID, ok := v.(string)
 	if !ok {
-		return nil, fmt.Errorf("metadata.assignment_id is not a string but %s",
+		return nil, idErrorf(submissionID, "metadata.assignment_id is not a string but %s",
 			reflect.TypeOf(v))
 	}
 	dir := filepath.Join(ag.Dir, assignmentID)
 	glog.V(3).Infof("assignment dir: %s", dir)
 	fs, err := os.Stat(dir)
 	if err != nil {
-		return nil, fmt.Errorf("assignment dir %q with id %q does not exit: %s", dir, assignmentID, err)
+		return nil, idErrorf(submissionID, "assignment dir %q with id %q does not exit: %s", dir, assignmentID, err)
 	}
 	if !fs.IsDir() {
-		return nil, fmt.Errorf("%q is not a directory", dir)
+		return nil, idErrorf(submissionID, "%q is not a directory", dir)
 	}
 	n, err := notebook.Parse(notebookBytes)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing the submitted blob as Jupyter notebook: %s", err)
+		return nil, idErrorf(submissionID, "error parsing the submitted blob as Jupyter notebook: %s", err)
 	}
 	baseScratchDir := filepath.Join(ag.ScratchDir, submissionID)
 	if ag.AutoRemove {
 		// Remove the scratch dir if it exists.
 		err = os.RemoveAll(baseScratchDir)
 		if err != nil {
-			return nil, fmt.Errorf("error removing %q: %s", baseScratchDir, err)
+			return nil, idErrorf(submissionID, "error removing %q: %s", baseScratchDir, err)
 		}
 	} else {
 		// Check that scratch dir does not exist.
 		_, err = os.Stat(baseScratchDir)
 		if err == nil {
-			return nil, fmt.Errorf("scratch dir %q already exists", baseScratchDir)
+			return nil, idErrorf(submissionID, "scratch dir %q already exists", baseScratchDir)
 		}
 	}
 	err = os.MkdirAll(baseScratchDir, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("error making scratch dir %q: %s", baseScratchDir, err)
+		return nil, idErrorf(submissionID, "error making scratch dir %q: %s", baseScratchDir, err)
 	}
 	if !ag.DisableCleanup {
 		defer func() {
@@ -239,22 +255,22 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		}
 		exerciseID, ok := v.(string)
 		if !ok {
-			return nil, fmt.Errorf("exercise_id is not a string but %s",
+			return nil, idErrorf(submissionID, "exercise_id is not a string but %s",
 				reflect.TypeOf(v))
 		}
 		exerciseDir := filepath.Join(dir, exerciseID)
 		fs, err = os.Stat(exerciseDir)
 		if err != nil {
-			return nil, fmt.Errorf("exercise with id %s/%s does not exit",
+			return nil, idErrorf(submissionID, "exercise with id %s/%s does not exit",
 				assignmentID, exerciseID)
 		}
 		if !fs.IsDir() {
-			return nil, fmt.Errorf("%q is not a directory", exerciseDir)
+			return nil, idErrorf(submissionID, "%q is not a directory", exerciseDir)
 		}
 		scratchDir := filepath.Join(baseScratchDir, exerciseID)
 		outcome, err := ag.GradeExercise(exerciseDir, scratchDir, cell.Source)
 		if err != nil {
-			return nil, fmt.Errorf("error grading exercise %s: %s", exerciseID, err)
+			return nil, idErrorf(submissionID, "error grading exercise %s: %s", exerciseID, err)
 		}
 		result[exerciseID] = outcome
 	}
@@ -262,7 +278,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 	result["submission_id"] = submissionID
 	b, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("error serializing report json: %s", err)
+		return nil, idErrorf(submissionID, "error serializing report json: %s", err)
 	}
 	return b, nil
 }
