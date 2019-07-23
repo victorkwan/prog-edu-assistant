@@ -178,7 +178,7 @@ pkg_tar(
     name = "tmp-student_notebooks_tar",
     mode = "644",
     strip_prefix = ".",  # This is to prevent directory flattening.
-    package_dir = "tmp",
+    package_dir = "tmp/student",
     deps = [
 	":student_notebooks_tar",
     ],
