@@ -31,7 +31,7 @@ genrule(
         "dataframe-pre1-en-master.ipynb",
     ],
     outs = ["dataframe-pre1-en-student.ipynb"],
-    cmd = """$(location //go/cmd/assign) --input="$(location :dataframe-pre1-en-master.ipynb)" --output="$@" --command=student""",
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""",
     tools = [
         "//go/cmd/assign",
     ],
@@ -43,7 +43,31 @@ genrule(
         "dataframe-pre1-en-master.ipynb",
     ],
     outs = ["dataframe-pre1-en-autograder"],
-    cmd = """$(location //go/cmd/assign) --input="$(location :dataframe-pre1-en-master.ipynb)" --output="$@" --command=autograder""",
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=autograder""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
+    name = "functional-ja-student",
+    srcs = [
+        "functional-ja-master.ipynb",
+    ],
+    outs = ["functional-ja-student.ipynb"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
+    name = "functional-ja-autograder-dir",
+    srcs = [
+        "functional-ja-master.ipynb",
+    ],
+    outs = ["functional-ja-autograder"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=autograder""",
     tools = [
         "//go/cmd/assign",
     ],
@@ -84,6 +108,14 @@ pkg_tar(
 )
 
 pkg_tar(
+    name = "functional-ja-autograder_tar",
+    srcs = [":functional-ja-autograder"],
+    mode = "644",
+    package_dir = "autograder",
+    strip_prefix = "functional-ja-autograder",
+)
+
+pkg_tar(
     name = "oop-en-autograder_tar",
     srcs = [":oop-en-autograder"],
     mode = "644",
@@ -117,6 +149,7 @@ pkg_tar(
 	":dataframe-pre1-en-autograder_tar",
 	":oop-en-autograder_tar",
 	":helloworld-en-autograder_tar",
+	":functional-ja-autograder_tar",
     ],
 )
 
@@ -135,6 +168,7 @@ pkg_tar(
     strip_prefix = ".",  # This is to prevent directory flattening.
     srcs = [
 	":helloworld-en-student",
+	":functional-ja-student",
 	":oop-en-student",
 	":dataframe-pre1-en-student",
     ] + glob(["data/*.csv"]),
@@ -164,9 +198,7 @@ container_image(
     #base = "@alpine_with_bash//image",
     base = "@debian_testing//image",
     tars = [
-        ":helloworld-en-autograder_tar",
-        ":oop-en-autograder_tar",
-	":dataframe-pre1-en-autograder_tar",
+	":autograder_tar",
         #":nsjail_tar"
     ],
     visibility = ["//visibility:public"],
