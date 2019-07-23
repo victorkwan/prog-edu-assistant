@@ -407,7 +407,7 @@ func (ag *Autograder) RunUnitTests(dir string) (map[string]interface{}, map[stri
 			"--disable_clone_newuser",
 			"--disable_clone_newuts",
 			"--disable_no_new_privs",
-			"--time_limit", "3",
+			"--time_limit", "30",
 			"--max_cpus", "1",
 			"--rlimit_as", "700",
 			"--env", "LANG=en_US.UTF-8",
