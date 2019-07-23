@@ -13,5 +13,8 @@ tar xvf bazel-genfiles/exercises/tmp-student_notebooks_tar.tar
 
 cp -v student/* tmp/student/
 cp -rv nbextensions tmp/student/
+perl -i -pe \
+  's,http://localhost:8000/upload,http://prog-edu-assistant.salikh.info/upload,g' \
+  tmp/student/nbextensions/upload_it/main.js
 
 (cd tmp/student && git init && git add . && git commit -a -m 'Student notebooks')
