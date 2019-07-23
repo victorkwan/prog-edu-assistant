@@ -1,0 +1,3 @@
+> report nsjail timeout
+> do not try to eval FunctionDef (and other non-expr statements)
+> support 'import submission_source' in the inline tests
