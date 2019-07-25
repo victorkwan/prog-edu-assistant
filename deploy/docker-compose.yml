@@ -1,12 +1,20 @@
-version: '2'
+version: '2.4'
 services:
   rabbitmq:
     image: rabbitmq
   web:
     ports:
-      - "80:8000"
+      - "443:443"
     image: asia.gcr.io/prog-edu-assistant/server
-    entrypoint: ['/usr/local/bin/uploadserver', '-upload_dir', '/tmp', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-allow_cors_origin', 'http://localhost:8888', '-use_openid']
+    volumes:
+      # Make the SSL certs available to the server.
+      - type: bind
+        source: ./certs
+        target: /certs
+        read_only: true
+      # Use the externally mounted volume for logs.
+      - ./logs:/logs
+    entrypoint: ['/usr/local/bin/uploadserver', '-use_https', '-port', '443', '-ssl_cert_file', '/certs/cert1.pem', '-ssl_key_file', '/certs/privkey1.pem', '-upload_dir', '/logs', '-logtostderr', '-v', '3', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-allow_cors_origin', 'http://localhost:8888', '-use_openid']
     env_file:
       # ./secret.env should define the following variables
       # Note 1: values should not use quotes.

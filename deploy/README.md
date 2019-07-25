@@ -26,7 +26,7 @@ You only need to run this step if you have made changes to the source code base.
       --machine-type=n1-standard-1 \
       --image-family=cos-stable \
       --image-project=cos-cloud \
-      --tags=http-server
+      --tags=http-server,https-server
 
     # See the IP address of the instance:
     gcloud compute instances list
@@ -48,7 +48,7 @@ The file `service-account.json` should be obtained from GCP console as a
 service account key.
 
     # Copy the deployment files to the instance:
-    scp deploy/{docker-compose.yml,secret.env,service-account.json} \
+    scp -r deploy/{certs,docker-compose.yml,secret.env,service-account.json} \
       prog-edu-assistant.salikh.info:
 
     
@@ -57,11 +57,12 @@ service account key.
 Start with logging to console:
 
     ssh prog-edu-assistant.salikh.info
-    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=2'
+    mkdir -p logs
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'
 
 Or start and detach (on a dev machine):
 
-    ssh prog-edu-assistant.salikh.info "docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=2'"
+    ssh prog-edu-assistant.salikh.info "mkdir -p logs && docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'"
 
 ## Inspect running services on the GCE instance
 
