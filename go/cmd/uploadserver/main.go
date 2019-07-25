@@ -129,8 +129,9 @@ func run() error {
 		}
 		ch, err = q.Receive(*reportQueue)
 		if err != nil {
-			return fmt.Errorf("error receiving on queue %q: %s", *autograderQueue, err)
+			return fmt.Errorf("error receiving on queue %q: %s", *reportQueue, err)
 		}
+		glog.Infof("Listening for reports on the queue %q", *reportQueue)
 		break
 	}
 	addr := ":" + strconv.Itoa(*port)
@@ -154,18 +155,18 @@ func run() error {
 		AuthEndpoint:     endpoint,
 		UserinfoEndpoint: userinfoEndpoint,
 		// ClientID should be obtained from the Open ID Connect provider.
-		ClientID:         os.Getenv("CLIENT_ID"),
+		ClientID: os.Getenv("CLIENT_ID"),
 		// ClientSecret should be obtained from the Open ID Connect provider.
-		ClientSecret:     os.Getenv("CLIENT_SECRET"),
+		ClientSecret: os.Getenv("CLIENT_SECRET"),
 		// CookieAuthKey should be a random string of 16 characters.
-		CookieAuthKey:    os.Getenv("COOKIE_AUTH_KEY"),
+		CookieAuthKey: os.Getenv("COOKIE_AUTH_KEY"),
 		// CookieEncryptKey should be a random string of 16 or 32 characters.
 		CookieEncryptKey: os.Getenv("COOKIE_ENCRYPT_KEY"),
 	})
+	go s.ListenForReports(ch)
 	fmt.Printf("\n  Serving on %s\n\n", serverURL)
 	if *useHTTPS {
 		return s.ListenAndServeTLS(addr, *sslCertFile, *sslKeyFile)
 	}
-	go s.ListenForReports(ch)
 	return s.ListenAndServe(addr)
 }

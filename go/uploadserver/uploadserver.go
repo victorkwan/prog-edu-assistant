@@ -456,6 +456,7 @@ func (s *Server) scheduleCheck(content []byte) error {
 }
 
 func (s *Server) ListenForReports(ch <-chan []byte) {
+	glog.Infof("Listening for reports")
 	for b := range ch {
 		glog.V(3).Infof("Received %d byte report", len(b))
 		glog.V(5).Infof("Received: %s", string(b))

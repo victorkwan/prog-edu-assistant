@@ -97,7 +97,7 @@ func run() error {
 	// Enter the main work loop
 	for b := range ch {
 		glog.V(5).Infof("Received %d bytes: %s", len(b), string(b))
-		report, err := ag.Grade(b)
+		reportBytes, err := ag.Grade(b)
 		if err != nil {
 			// TODO(salikh): Add monitoring.
 			log.Println(err)
@@ -112,28 +112,31 @@ func run() error {
 				log.Println(err)
 				continue
 			}
-			report := map[string]interface{}{
+			reportJSON := map[string]interface{}{
 				"submission_id": errId.SubmissionID,
 				"Report": map[string]interface{}{
 					"report": buf.String(),
 				},
 			}
-			b, err := json.MarshalIndent(report, "", "  ")
+			reportBytes, err := json.MarshalIndent(reportJSON, "", "  ")
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			err = q.Post(*reportQueue, b)
+			err = q.Post(*reportQueue, reportBytes)
 			if err != nil {
-				log.Println(err)
+				glog.Errorf("Error posting %d byte report to queue %q: %s",
+					len(reportBytes), *reportQueue, err)
 			}
 			continue
 		}
-		glog.V(3).Infof("Grade result %d bytes: %s", len(report), string(report))
-		err = q.Post(*reportQueue, report)
+		glog.V(3).Infof("Grade result %d bytes: %s",
+			len(reportBytes), string(reportBytes))
+		err = q.Post(*reportQueue, reportBytes)
 		if err != nil {
-			log.Println(err)
+			glog.Errorf("Error posting %d byte report to queue %q: %s", len(reportBytes), *reportQueue, err)
 		}
+		glog.V(5).Infof("Posted %d bytes to queue %q", len(reportBytes), *reportQueue)
 	}
 	return nil
 }
