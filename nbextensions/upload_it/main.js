@@ -92,7 +92,7 @@ define([
                 window.open(reportURL, '_blank');
               },
               error: function(jqXHR, status, err) {
-                if (err == "Unauthorized") {
+                if (jqXHR.status == 401) {
                   window.console.log("Unauthorized, attempting login");
                   const loginURL = new URL(configuration.upload_it_server_url);
                   loginURL.pathname = '/login';
