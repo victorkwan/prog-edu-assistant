@@ -16,5 +16,3 @@ cp -rv nbextensions tmp/student/
 perl -i -pe \
   's,http://localhost:8000/upload,https://prog-edu-assistant.salikh.info/upload,g' \
   tmp/student/nbextensions/upload_it/main.js
-
-(cd tmp/student && git init && git add . && git commit -a -m 'Student notebooks')
