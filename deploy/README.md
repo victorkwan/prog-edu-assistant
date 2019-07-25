@@ -58,11 +58,13 @@ Start with logging to console:
 
     ssh prog-edu-assistant.salikh.info
     mkdir -p logs
+    docker pull asia.gcr.io/prog-edu-assistant/worker
+    docker pull asia.gcr.io/prog-edu-assistant/server
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'
 
 Or start and detach (on a dev machine):
 
-    ssh prog-edu-assistant.salikh.info "mkdir -p logs && docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'"
+    ssh prog-edu-assistant.salikh.info "mkdir -p logs && docker pull asia.gcr.io/prog-edu-assistant/worker && docker pull asia.gcr.io/prog-edu-assistant/server && docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'"
 
 ## Inspect running services on the GCE instance
 
