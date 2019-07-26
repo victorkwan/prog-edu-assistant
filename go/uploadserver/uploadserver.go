@@ -5,6 +5,7 @@
 package uploadserver
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -117,7 +118,13 @@ func (s *Server) ListenAndServe(addr string) error {
 
 // ListenAndServeTLS starts a server using HTTPS.
 func (s *Server) ListenAndServeTLS(addr, certFile, keyFile string) error {
-	return http.ListenAndServeTLS(addr, certFile, keyFile, s.mux)
+	config := &tls.Config{MinVersion: tls.VersionTLS10}
+	httpserver := &http.Server{
+		Addr:      addr,
+		TLSConfig: config,
+		Handler:   s.mux,
+	}
+	return httpserver.ListenAndServeTLS(certFile, keyFile)
 }
 
 // httpError wraps the HTTP status code and makes them usable as Go errors.
