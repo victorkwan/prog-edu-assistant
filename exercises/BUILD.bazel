@@ -52,10 +52,22 @@ genrule(
 genrule(
     name = "functional-ja-student",
     srcs = [
-        "functional-ja-master.ipynb",
+        "functional-ja-en-master.ipynb",
     ],
     outs = ["functional-ja-student.ipynb"],
-    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""",
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student --language=ja""",
+    tools = [
+        "//go/cmd/assign",
+    ],
+)
+
+genrule(
+    name = "functional-en-student",
+    srcs = [
+        "functional-ja-en-master.ipynb",
+    ],
+    outs = ["functional-en-student.ipynb"],
+    cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student --language=en""",
     tools = [
         "//go/cmd/assign",
     ],
@@ -64,7 +76,7 @@ genrule(
 genrule(
     name = "functional-ja-autograder-dir",
     srcs = [
-        "functional-ja-master.ipynb",
+        "functional-ja-en-master.ipynb",
     ],
     outs = ["functional-ja-autograder"],
     cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=autograder""",
