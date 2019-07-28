@@ -536,7 +536,7 @@ func (n *Notebook) ToStudent(lang Language) (*Notebook, error) {
 				// Skip # MASTER ONLY
 				return nil, nil
 			}
-			if source = lang.filterText(cell.Source); len(source) == 0 {
+			if source = lang.filterText(source); len(source) == 0 {
 				return nil, nil
 			}
 		}
