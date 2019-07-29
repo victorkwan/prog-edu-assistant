@@ -1,21 +1,22 @@
 # Student notebook repo
 
 This repository is not a true source repository. It is automatically
-generated from https://github.com/salikh/prog-edu-assistant.
+generated from https://github.com/salikh/prog-edu-assistant,
+which itself is a fork of https://github.com/google/prog-edu-assistant.
+
+## Binder
+
+You can open notebooks from this repository by clicking the following links:
+* Functional programming/OOP: https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=functional-ja-en-ja-student.ipynb
+* Dataframes 1: https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre1-en-ja-student.ipynb
+* Dataframes 2: https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre2-en-ja-student.ipynb
+* Dataframes 3: https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre3-en-ja-student.ipynb
 
 ## Local environment setup
 
 ### Conda
 
 TODO: Add instructions for Conda.
-
-### Binder
-
-TODO: Add more detailed instructions for Binder.
-
-You can start a notebook by visiting http://mybinder.org or directly
-an URL like this:
-https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=functional-ja-student.ipynb
 
 ### Virtualenv
 
