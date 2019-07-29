@@ -119,6 +119,7 @@ pkg_tar(
         ":helloworld-en-autograder_tar",
         ":oop-en-autograder_tar",
 	":dataframe-pre2-en-autograder_tar",
+	":dataframe-pre3-en-autograder_tar",
     ],
 )
 
