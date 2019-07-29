@@ -12,6 +12,7 @@ assignment_notebook(
 assignment_notebook(
     name = "dataframe-pre2-en",
     srcs = ["dataframe-pre2-en-master.ipynb"],
+    language = "ja",
 )
 
 assignment_notebook(
