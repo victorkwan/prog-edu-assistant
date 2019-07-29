@@ -142,26 +142,26 @@ filegroup(
 
 pkg_tar(
     name = "dataframe-pre1-en-autograder_tar",
-    package_dir = "autograder",
-    mode = "644",
-    strip_prefix = "dataframe-pre1-en-autograder",
-    remap_paths = {
-	"exercises": "DataFrame1/CreateDataFrameFromText",
-    },
     srcs = [
-      	":dataframe-pre1-en-autograder",
-	":data_dir",
-    ]
+        ":data_dir",
+        ":dataframe-pre1-en-autograder",
+    ],
+    mode = "644",
+    package_dir = "autograder",
+    remap_paths = {
+        "exercises": "DataFrame1/CreateDataFrameFromText",
+    },
+    strip_prefix = "dataframe-pre1-en-autograder",
 )
 
 pkg_tar(
     name = "autograder_tar",
     mode = "644",
     deps = [
-	":dataframe-pre1-en-autograder_tar",
-	":oop-en-autograder_tar",
-	":helloworld-en-autograder_tar",
-	":functional-ja-autograder_tar",
+        ":dataframe-pre1-en-autograder_tar",
+        ":functional-ja-autograder_tar",
+        ":helloworld-en-autograder_tar",
+        ":oop-en-autograder_tar",
     ],
 )
 
@@ -170,29 +170,30 @@ pkg_tar(
     mode = "644",
     package_dir = "tmp",
     deps = [
-	":autograder_tar",
+        ":autograder_tar",
     ],
 )
 
 pkg_tar(
     name = "student_notebooks_tar",
+    srcs = [
+        ":helloworld-en-student",
+        ":functional-ja-student",
+        ":functional-en-student",
+        ":oop-en-student",
+        ":dataframe-pre1-en-student",
+    ] + glob(["data/*"]),
     mode = "644",
     strip_prefix = ".",  # This is to prevent directory flattening.
-    srcs = [
-	":helloworld-en-student",
-	":functional-ja-student",
-	":oop-en-student",
-	":dataframe-pre1-en-student",
-    ] + glob(["data/*"]),
 )
 
 pkg_tar(
     name = "tmp-student_notebooks_tar",
     mode = "644",
-    strip_prefix = ".",  # This is to prevent directory flattening.
     package_dir = "tmp/student",
+    strip_prefix = ".",  # This is to prevent directory flattening.
     deps = [
-	":student_notebooks_tar",
+        ":student_notebooks_tar",
     ],
 )
 
@@ -210,7 +211,7 @@ container_image(
     #base = "@alpine_with_bash//image",
     base = "@debian_testing//image",
     tars = [
-	":autograder_tar",
+        ":autograder_tar",
         #":nsjail_tar"
     ],
     visibility = ["//visibility:public"],
