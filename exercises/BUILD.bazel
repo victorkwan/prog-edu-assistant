@@ -6,6 +6,7 @@ load("//exercises:defs.bzl", "assignment_notebook")
 assignment_notebook(
     name = "dataframe-pre1-en",
     srcs = ["dataframe-pre1-en-master.ipynb"],
+    language = "ja",
 )
 
 assignment_notebook(
