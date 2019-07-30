@@ -30,7 +30,8 @@ server:
     easiest way to get a certificate is from Letsencrypt.
 
 *   A service account key in JSON format should be downloaded from GCP console
-    in advance and put into `deploy/service-account.json`.
+    in advance and put into `deploy/service-account.json`. The corresponding GCP
+    project name is referred as $GCP_PROJECT below.
 
 WARNING: You should never submit secrets, certificats or private keys to source
 code repository.
@@ -42,17 +43,17 @@ You need to install recent version of Google Cloud SDK first.
     # Authenticate with gcloud
     gcloud auth login
     # Choose the project name
-    gcloud config set project prog-edu-assistant
+    gcloud config set project ${GCP_PROJECT?}
 
 ## Build and push images to GCR (on a dev machine)
 
 You only need to run this step if you have made changes to the source code base.
 
     (cd docker && ./build.sh && \
-     docker tag server asia.gcr.io/prog-edu-assistant/server && \
-     docker tag worker asia.gcr.io/prog-edu-assistant/worker && \
-     docker push asia.gcr.io/prog-edu-assistant/server && \
-     docker push asia.gcr.io/prog-edu-assistant/worker)
+     docker tag server asia.gcr.io/${GCP_PROJECT?}/server && \
+     docker tag worker asia.gcr.io/${GCP_PROJECT?}/worker && \
+     docker push asia.gcr.io/${GCP_PROJECT?}/server && \
+     docker push asia.gcr.io/${GCP_PROJECT?}/worker)
 
 ## Create an instance (on a dev machine)
 
@@ -92,13 +93,13 @@ Start with logging to console:
     ssh $GCE_HOST
     mkdir -p logs
     cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io
-    docker pull asia.gcr.io/prog-edu-assistant/worker
-    docker pull asia.gcr.io/prog-edu-assistant/server
-    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'
+    docker pull asia.gcr.io/${GCP_PROJECT?}/worker
+    docker pull asia.gcr.io/${GCP_PROJECT?}/server
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD --entrypoint=sh docker/compose:1.24.0 -c "cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && export GCP_PROJECT=${GCP_PROJECT?} && docker-compose up --scale worker=4"
 
 Or start and detach (on a dev machine):
 
-    ssh $GCE_HOST "mkdir -p logs && cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker pull asia.gcr.io/prog-edu-assistant/worker && docker pull asia.gcr.io/prog-edu-assistant/server && docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker-compose up --scale worker=4'"
+    ssh $GCE_HOST "mkdir -p logs && cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && docker pull asia.gcr.io/${GCP_PROJECT?}/worker && docker pull asia.gcr.io/${GCP_PROJECT?}/server && docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock -v \$PWD:\$PWD -w=\$PWD --entrypoint=sh docker/compose:1.24.0 -c 'cat service-account.json | docker login -u _json_key --password-stdin https://asia.gcr.io && export GCP_PROJECT=${GCP_PROJECT?} && docker-compose up --scale worker=4'"
 
 ## Inspect running services on the GCE instance
 

@@ -5,7 +5,7 @@ services:
   web:
     ports:
       - "443:443"
-    image: asia.gcr.io/prog-edu-assistant/server
+    image: asia.gcr.io/$GCP_PROJECT/server
     volumes:
       # Make the SSL certs available to the server.
       - type: bind
@@ -28,7 +28,7 @@ services:
     read_only: true
     tmpfs: /tmp
   worker:
-    image: asia.gcr.io/prog-edu-assistant/worker
+    image: asia.gcr.io/$GCP_PROJECT/worker
     entrypoint: ['/usr/local/bin/worker', '-scratch_dir', '/tmp', '-autograder_dir', '/autograder', '-logtostderr', '-v', '5', '-queue_spec', 'amqp://guest:guest@rabbitmq:5672/', '-python_path', '/usr/bin/python', '-disable_cleanup', '-auto_remove']
     tmpfs: /tmp
     read_only: true

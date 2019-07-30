@@ -91,7 +91,7 @@ pkg_tar(
     remap_paths = {
         "exercises": "DataFrame1/CreateDataFrameFromText",
     },
-    strip_prefix = "dataframe-pre1-en-autograder",
+    strip_prefix = "dataframe-pre1-en-ja-autograder",
 )
 
 pkg_tar(
@@ -99,7 +99,7 @@ pkg_tar(
     srcs = [":dataframe-pre2-en_autograder"],
     mode = "644",
     package_dir = "autograder",
-    strip_prefix = "dataframe-pre2-en-autograder",
+    strip_prefix = "dataframe-pre2-en-ja-autograder",
 )
 
 pkg_tar(
@@ -107,7 +107,7 @@ pkg_tar(
     srcs = [":dataframe-pre3-en_autograder"],
     mode = "644",
     package_dir = "autograder",
-    strip_prefix = "dataframe-pre3-en-autograder",
+    strip_prefix = "dataframe-pre3-en-ja-autograder",
 )
 
 pkg_tar(
@@ -115,11 +115,11 @@ pkg_tar(
     mode = "644",
     deps = [
         ":dataframe-pre1-en-autograder_tar",
+        ":dataframe-pre2-en-autograder_tar",
+        ":dataframe-pre3-en-autograder_tar",
         ":functional-ja-autograder_tar",
         ":helloworld-en-autograder_tar",
         ":oop-en-autograder_tar",
-	":dataframe-pre2-en-autograder_tar",
-	":dataframe-pre3-en-autograder_tar",
     ],
 )
 
