@@ -27,8 +27,8 @@ var (
 		"The path to the signed SSL server certificate.")
 	sslKeyFile = flag.String("ssl_key_file", "localhost.key",
 		"The path to the SSL server key.")
-	allowCORSOrigin = flag.String("allow_cors_origin", "",
-		"If non-empty, allow cross-origin requests from the specified domain."+
+	allowCORS = flag.Bool("allow_cors", false,
+		"If true, allow cross-origin requests from any domain."+
 			"This is currently necessary to enable uploads from Jupyter notebooks, "+
 			"but unfortunately "+
 			"it also makes the server vulnerable to XSRF attacks. Use with care.")
@@ -145,7 +145,7 @@ func run() error {
 		serverURL = os.Getenv("SERVER_URL")
 	}
 	s := uploadserver.New(uploadserver.Options{
-		AllowCORSOrigin:  *allowCORSOrigin,
+		AllowCORS:        *allowCORS,
 		ServerURL:        serverURL,
 		UploadDir:        *uploadDir,
 		Channel:          q,

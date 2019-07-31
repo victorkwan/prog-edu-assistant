@@ -1,5 +1,6 @@
 # Pilot - deadline 8/8
 
+* use Origin value in CORS responses
 > drop outputs when uploading the notebook
 > detect and report time out in %%inlinetest
 > include source code in the automatic reports by %%inlinetest

@@ -32,10 +32,8 @@ type Options struct {
 	// UploadDir specifies the directory to write uploaded files to
 	// and to serve on /uploads.
 	UploadDir string
-	// AllowCORSOrigin specifies the origin allowed for cross-origin requests.
-	// This value is returned in
-	// Access-Control-Allow-Origin: HTTP header.
-	AllowCORSOrigin string
+	// AllowCORS specifies whether cross-origin requests are allowed.
+	AllowCORS bool
 	// QueueName is the name of the queue to post uploads.
 	QueueName string
 	// Channel is the interface to the message queue.
@@ -170,11 +168,6 @@ func (s *Server) handleFavIcon(w http.ResponseWriter, req *http.Request) {
 // is designed to handle the case of workers being overloaded with graing work
 // and producing reports with long delay.
 func (s *Server) handleReport(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.AllowCORSOrigin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
 	basename := path.Base(req.URL.Path)
 	filename := filepath.Join(s.opts.UploadDir, basename+".txt")
 	glog.V(5).Infof("checking %q for existence", filename)
@@ -381,12 +374,19 @@ const maxUploadSize = 1048576
 
 // handleUpload handles the upload requests via web form.
 func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
-	if s.opts.AllowCORSOrigin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
 	glog.Infof("%s %s", req.Method, req.URL.Path)
+	if s.opts.AllowCORS {
+		origin := "*"
+		if len(req.Header["Origin"]) > 0 {
+			origin = req.Header["Origin"][0]
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "1800")
+		if req.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Allow-Methods", "POST")
+		}
+	}
 	if req.Method == "OPTIONS" {
 		return nil
 	}
@@ -447,12 +447,6 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/plain")
-	if s.opts.AllowCORSOrigin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", s.opts.AllowCORSOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
-	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	glog.V(5).Infof("Uploaded: %s", string(b))
 	fmt.Fprintf(w, "/report/"+submissionID)
 	return nil

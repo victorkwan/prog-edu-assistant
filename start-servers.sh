@@ -36,4 +36,4 @@ trap 'kill %3; kill %2; kill %1' SIGINT
 go run cmd/uploadserver/main.go \
   --logtostderr --v=3 \
   --upload_dir=../tmp-uploads \
-  --allow_cors_origin=http://localhost:8888
+  --allow_cors
