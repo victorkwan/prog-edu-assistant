@@ -60,7 +60,7 @@ func main() {
 
 func run() error {
 	endpoint := google.Endpoint
-	var userinfoEndpoint string
+	userinfoEndpoint := "https://openidconnect.googleapis.com/v1/userinfo"
 	if *openIDIssuer != "" {
 		wellKnownURL := *openIDIssuer + "/.well-known/openid-configuration"
 		resp, err := http.Get(wellKnownURL)
