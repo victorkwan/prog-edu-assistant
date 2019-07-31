@@ -5,6 +5,7 @@
 package uploadserver
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -55,6 +56,9 @@ type Options struct {
 	CookieAuthKey string
 	// Set to 16, 24 or 32 random bytes.
 	CookieEncryptKey string
+	// HashSalt should be set to a random string. It is used for hashing student
+	// ids.
+	HashSalt string
 }
 
 // Server provides an implementation of a web server for handling student
@@ -104,6 +108,13 @@ func New(opts Options) *Server {
 }
 
 const UserSessionName = "user_session"
+
+// hashId uses cryptographic hash (sha224) and a secret salt
+// to hash the user id (email address) into a hash.
+func (s *Server) hashId(id string) string {
+	b := sha256.Sum224([]byte(s.opts.HashSalt + id))
+	return base64.StdEncoding.EncodeToString(b[:])
+}
 
 // ListenAndServe starts the server similarly to http.ListenAndServe.
 func (s *Server) ListenAndServe(addr string) error {
@@ -308,7 +319,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, req *http.Request) error 
 		return nil
 	}
 	if len(s.opts.AllowedUsers) > 0 && !s.opts.AllowedUsers[profile.Email] {
-		delete(session.Values, "email")
+		delete(session.Values, "hash")
 		session.Save(req, w)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusForbidden)
@@ -316,7 +327,8 @@ func (s *Server) handleCallback(w http.ResponseWriter, req *http.Request) error 
 			"Try a different Google account. <a href='https://mail.google.com/mail/logout'>Log out of Google</a>.", profile.Email)))
 		return nil
 	}
-	session.Values["email"] = profile.Email
+	// Instead of email, we store a salted cryptographic hash (pseudonymous id).
+	session.Values["hash"] = s.hashId(profile.Email)
 	session.Save(req, w)
 	http.Redirect(w, req, "/profile", http.StatusTemporaryRedirect)
 	return nil
@@ -330,9 +342,9 @@ func (s *Server) handleProfile(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	email, ok := session.Values["email"]
+	hash, ok := session.Values["hash"]
 	if ok {
-		fmt.Fprintf(w, "Logged in as %s. <a href='/logout'>Log out link</a>.", email)
+		fmt.Fprintf(w, "Logged in as %s. <a href='/logout'>Log out link</a>.", hash)
 		fmt.Fprintf(w, "<p><strong>You can close this window and retry upload now.</strong>")
 	} else {
 		fmt.Fprintf(w, "Logged out. <a href='/login'>Log in</a>.")
@@ -346,7 +358,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	delete(session.Values, "email")
+	delete(session.Values, "hash")
 	session.Save(req, w)
 	http.Redirect(w, req, "/profile", http.StatusTemporaryRedirect)
 	return nil
@@ -359,13 +371,10 @@ func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	email, ok := session.Values["email"].(string)
-	glog.V(3).Infof("authenticate %s: email=%s", req.URL, session.Values["email"])
-	if !ok || email == "" {
+	hash, ok := session.Values["hash"].(string)
+	glog.V(3).Infof("authenticate %s: hash=%s", req.URL, session.Values["hash"])
+	if !ok || hash == "" {
 		return httpError(http.StatusUnauthorized)
-	}
-	if len(s.opts.AllowedUsers) > 0 && !s.opts.AllowedUsers[email] {
-		return httpError(http.StatusForbidden)
 	}
 	return nil
 }

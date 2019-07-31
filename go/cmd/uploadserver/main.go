@@ -162,6 +162,8 @@ func run() error {
 		CookieAuthKey: os.Getenv("COOKIE_AUTH_KEY"),
 		// CookieEncryptKey should be a random string of 16 or 32 characters.
 		CookieEncryptKey: os.Getenv("COOKIE_ENCRYPT_KEY"),
+		// HashSalt should be a random string.
+		HashSalt: os.Getenv("HASH_SALT"),
 	})
 	go s.ListenForReports(ch)
 	fmt.Printf("\n  Serving on %s\n\n", serverURL)
