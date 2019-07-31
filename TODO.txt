@@ -1,11 +1,12 @@
 # Pilot - deadline 8/8
 
 * use Origin value in CORS responses
-> drop outputs when uploading the notebook
+* drop outputs when uploading the notebook
 > detect and report time out in %%inlinetest
 > include source code in the automatic reports by %%inlinetest
 > syntactic tests for dataframe 2
 > %%inlinetest for FP_OOP
+> fix 'x' in globals() in %%inlinetest when run for %%submission.
 
 
 * save the context separately from the inlinetest
