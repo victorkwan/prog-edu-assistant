@@ -207,6 +207,15 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		return nil, idErrorf(submissionID, "metadata.assignment_id is not a string but %s",
 			reflect.TypeOf(v))
 	}
+	userHash := "unknown"
+	v, ok = metadata["user_hash"]
+	if ok {
+		userHash, ok = v.(string)
+		if !ok {
+			return nil, idErrorf(submissionID, "metadata.user_hash is not a string but %s",
+				reflect.TypeOf(v))
+		}
+	}
 	dir := filepath.Join(ag.Dir, assignmentID)
 	glog.V(3).Infof("assignment dir: %s", dir)
 	fs, err := os.Stat(dir)
@@ -275,6 +284,7 @@ func (ag *Autograder) Grade(notebookBytes []byte) ([]byte, error) {
 		result[exerciseID] = outcome
 	}
 	result["assignment_id"] = assignmentID
+	result["user_hash"] = userHash
 	result["submission_id"] = submissionID
 	b, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -306,7 +316,7 @@ func (ag *Autograder) GradeExercise(exerciseDir, scratchDir, submission string) 
 			// The submission is not changed from the default state.
 			exerciseName := filepath.Base(exerciseDir)
 			return map[string]interface{}{
-				"report": fmt.Sprintf("Exercise %s is not submitted", exerciseName),
+				"report": fmt.Sprintf("%s: empty submission", exerciseName),
 			}, nil
 		}
 	}

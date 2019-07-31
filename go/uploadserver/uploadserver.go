@@ -365,18 +365,18 @@ func (s *Server) handleLogout(w http.ResponseWriter, req *http.Request) error {
 }
 
 // authenticate handles the authentication. If authentication or authorization
-// was not successful, it returns an error.
-func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) error {
+// was not successful, it returns an error. Normally it returns the user hash.
+func (s *Server) authenticate(w http.ResponseWriter, req *http.Request) (string, error) {
 	session, err := s.cookieStore.Get(req, UserSessionName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	hash, ok := session.Values["hash"].(string)
 	glog.V(3).Infof("authenticate %s: hash=%s", req.URL, session.Values["hash"])
 	if !ok || hash == "" {
-		return httpError(http.StatusUnauthorized)
+		return "", httpError(http.StatusUnauthorized)
 	}
-	return nil
+	return hash, nil
 }
 
 const maxUploadSize = 1048576
@@ -399,8 +399,10 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	if req.Method == "OPTIONS" {
 		return nil
 	}
+	userHash := "unknown"
 	if s.opts.UseOpenID {
-		err := s.authenticate(w, req)
+		var err error
+		userHash, err = s.authenticate(w, req)
 		if err != nil {
 			return err
 		}
@@ -430,7 +432,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("error writing uploaded file: %s", err)
 	}
-	// Store submission ID inside the metadata.
+	// Store user hash and submission ID inside the metadata.
 	data := make(map[string]interface{})
 	err = json.Unmarshal(b, &data)
 	if err != nil {
@@ -446,6 +448,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, req *http.Request) error {
 		data["metadata"] = metadata
 	}
 	metadata["submission_id"] = submissionID
+	metadata["user_hash"] = userHash
 	b, err = json.Marshal(data)
 	if err != nil {
 		return err
@@ -500,7 +503,7 @@ func (s *Server) ListenForReports(ch <-chan []byte) {
 // uploadForm provides a simple web form for manual uploads.
 func (s *Server) uploadForm(w http.ResponseWriter, req *http.Request) error {
 	if s.opts.UseOpenID {
-		err := s.authenticate(w, req)
+		_, err := s.authenticate(w, req)
 		if err != nil {
 			return err
 		}
