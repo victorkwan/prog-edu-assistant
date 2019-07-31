@@ -4,20 +4,20 @@
 load("//exercises:defs.bzl", "assignment_notebook")
 
 assignment_notebook(
-    name = "dataframe-pre1-en",
-    srcs = ["dataframe-pre1-en-master.ipynb"],
+    name = "dataframe-pre1-ja",
+    srcs = ["dataframe-pre1-master.ipynb"],
     language = "ja",
 )
 
 assignment_notebook(
-    name = "dataframe-pre2-en",
-    srcs = ["dataframe-pre2-en-master.ipynb"],
+    name = "dataframe-pre2-ja",
+    srcs = ["dataframe-pre2-master.ipynb"],
     language = "ja",
 )
 
 assignment_notebook(
-    name = "dataframe-pre3-en",
-    srcs = ["dataframe-pre3-en-master.ipynb"],
+    name = "dataframe-pre3-ja",
+    srcs = ["dataframe-pre3-master.ipynb"],
     language = "ja",
 )
 
@@ -33,14 +33,14 @@ assignment_notebook(
 
 assignment_notebook(
     name = "functional-ja",
-    srcs = ["functional-ja-en-master.ipynb"],
+    srcs = ["functional-master.ipynb"],
     language = "ja",
 )
 
 genrule(
     name = "functional-en-student",
     srcs = [
-        "functional-ja-en-master.ipynb",
+        "functional-master.ipynb",
     ],
     outs = ["functional-en-student.ipynb"],
     cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student --language=en""",
@@ -64,7 +64,7 @@ pkg_tar(
     srcs = [":functional-ja_autograder"],
     mode = "644",
     package_dir = "autograder",
-    strip_prefix = "functional-ja-en-ja-autograder",
+    strip_prefix = "functional-ja-autograder",
 )
 
 pkg_tar(
@@ -81,42 +81,54 @@ filegroup(
 )
 
 pkg_tar(
-    name = "dataframe-pre1-en-autograder_tar",
+    name = "dataframe-pre1-ja-autograder_tar",
     srcs = [
         ":data_dir",
-        ":dataframe-pre1-en_autograder",
+        ":dataframe-pre1-ja_autograder",
     ],
     mode = "644",
     package_dir = "autograder",
     remap_paths = {
         "exercises": "DataFrame1/CreateDataFrameFromText",
     },
-    strip_prefix = "dataframe-pre1-en-ja-autograder",
+    strip_prefix = "dataframe-pre1-autograder",
 )
 
 pkg_tar(
-    name = "dataframe-pre2-en-autograder_tar",
-    srcs = [":dataframe-pre2-en_autograder"],
+    name = "dataframe-pre2-ja-autograder_tar",
+    srcs = [
+	":data_dir",
+	":dataframe-pre2-ja_autograder"
+    ],
     mode = "644",
     package_dir = "autograder",
-    strip_prefix = "dataframe-pre2-en-ja-autograder",
+    remap_paths = {
+        "exercises": "DataFrame2/VisualizeDataset",
+    },
+    strip_prefix = "dataframe-pre2-autograder",
 )
 
 pkg_tar(
-    name = "dataframe-pre3-en-autograder_tar",
-    srcs = [":dataframe-pre3-en_autograder"],
+    name = "dataframe-pre3-ja-autograder_tar",
+    srcs = [
+	":data_dir",
+	":dataframe-pre3-ja_autograder"
+    ],
     mode = "644",
     package_dir = "autograder",
-    strip_prefix = "dataframe-pre3-en-ja-autograder",
+    remap_paths = {
+        "exercises": "DataFrame3/DataManipulation",
+    },
+    strip_prefix = "dataframe-pre3-autograder",
 )
 
 pkg_tar(
     name = "autograder_tar",
     mode = "644",
     deps = [
-        ":dataframe-pre1-en-autograder_tar",
-        ":dataframe-pre2-en-autograder_tar",
-        ":dataframe-pre3-en-autograder_tar",
+        ":dataframe-pre1-ja-autograder_tar",
+        ":dataframe-pre2-ja-autograder_tar",
+        ":dataframe-pre3-ja-autograder_tar",
         ":functional-ja-autograder_tar",
         ":helloworld-en-autograder_tar",
         ":oop-en-autograder_tar",
@@ -139,9 +151,9 @@ pkg_tar(
         ":functional-ja_student",
         ":functional-en-student",
         ":oop-en_student",
-        ":dataframe-pre1-en_student",
-        ":dataframe-pre2-en_student",
-        ":dataframe-pre3-en_student",
+        ":dataframe-pre1-ja_student",
+        ":dataframe-pre2-ja_student",
+        ":dataframe-pre3-ja_student",
     ] + glob(["data/*"]),
     mode = "644",
     strip_prefix = ".",  # This is to prevent directory flattening.

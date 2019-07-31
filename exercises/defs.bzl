@@ -13,20 +13,18 @@ def assignment_notebook(
     srcs: the file name of the input notebook should end in '-master.ipynb'.
     """
     language_opt = ""
-    language_suffix = ""
     if language:
       language_opt = " --language=" + language
-      language_suffix = "-" + language
     native.genrule(
 	name = name + "_student",
 	srcs = srcs,
-	outs = [srcs[0].replace('-master.ipynb','') + language_suffix + '-student.ipynb'],
+	outs = [srcs[0].replace('-master.ipynb','') + '-student.ipynb'],
 	cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""" + language_opt,
 	tools = [
 	    "//go/cmd/assign",
 	],
     )
-    autograder_output = srcs[0].replace('-master.ipynb','') + language_suffix + '-autograder'
+    autograder_output = srcs[0].replace('-master.ipynb','') + '-autograder'
     native.genrule(
 	name = name + "_autograder",
 	srcs = srcs,
