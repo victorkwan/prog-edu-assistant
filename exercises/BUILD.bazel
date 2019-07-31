@@ -91,7 +91,7 @@ pkg_tar(
     remap_paths = {
         "exercises": "DataFrame1/CreateDataFrameFromText",
     },
-    strip_prefix = "dataframe-pre1-autograder",
+    strip_prefix = "dataframe-pre1-ja-autograder",
 )
 
 pkg_tar(
@@ -105,7 +105,7 @@ pkg_tar(
     remap_paths = {
         "exercises": "DataFrame2/VisualizeDataset",
     },
-    strip_prefix = "dataframe-pre2-autograder",
+    strip_prefix = "dataframe-pre2-ja-autograder",
 )
 
 pkg_tar(
@@ -119,7 +119,7 @@ pkg_tar(
     remap_paths = {
         "exercises": "DataFrame3/DataManipulation",
     },
-    strip_prefix = "dataframe-pre3-autograder",
+    strip_prefix = "dataframe-pre3-ja-autograder",
 )
 
 pkg_tar(

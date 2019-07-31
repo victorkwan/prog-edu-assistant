@@ -18,13 +18,13 @@ def assignment_notebook(
     native.genrule(
 	name = name + "_student",
 	srcs = srcs,
-	outs = [srcs[0].replace('-master.ipynb','') + '-student.ipynb'],
+	outs = [name + '-student.ipynb'],
 	cmd = """$(location //go/cmd/assign) --input="$<" --output="$@" --command=student""" + language_opt,
 	tools = [
 	    "//go/cmd/assign",
 	],
     )
-    autograder_output = srcs[0].replace('-master.ipynb','') + '-autograder'
+    autograder_output = name + '-autograder'
     native.genrule(
 	name = name + "_autograder",
 	srcs = srcs,
