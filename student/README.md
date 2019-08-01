@@ -6,15 +6,17 @@ https://github.com/google/prog-edu-assistant.
 
 ## Binder
 
-You can open notebooks from this repository by clicking the following links: *
-Functional programming/OOP:
-https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=functional-ja-en-ja-student.ipynb
+You can open notebooks from this repository by clicking
+the following links:
+
+* Functional programming/OOP:
+https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=functional-ja-student.ipynb
 * Dataframes 1:
-https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre1-en-ja-student.ipynb
+https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre1-ja-student.ipynb
 * Dataframes 2:
-https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre2-en-ja-student.ipynb
+https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre2-ja-student.ipynb
 * Dataframes 3:
-https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre3-en-ja-student.ipynb
+https://mybinder.org/v2/gh/salikh/student-notebooks/master?filepath=dataframe-pre3-ja-student.ipynb
 
 ## Local environment setup
 

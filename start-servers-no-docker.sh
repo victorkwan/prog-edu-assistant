@@ -25,7 +25,7 @@ pgrep jupyter &>/dev/null || jupyter notebook &
 docker run --rm -p 5672:5672 rabbitmq &
 
 cd go
-mkdir -p ../tmp-uploads
+mkdir -p ../tmp/uploads
 # Start the autograder worker
 go run cmd/worker/worker.go --autograder_dir=../tmp/autograder --logtostderr --v=3 --disable_cleanup --auto_remove --scratch_dir=/tmp/autograder &
 

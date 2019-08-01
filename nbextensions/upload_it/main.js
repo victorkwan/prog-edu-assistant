@@ -70,14 +70,17 @@ define([
         "Upload": {
           "class": "btn-primary",
           "click": function () {
-            // Create a shallow copy of the notebook and drop the outputs.
-            const notebook = Object.assign({}, Jupyter.notebook);
-            notebook.cells = notebook.cells.map(function(cell) {
-              cell.outputs = [];
-            });
+            const notebook = Jupyter.notebook.toJSON();
+            if ('cells' in notebook && notebook.cells.length > 0) {
+              // Drop the cell outputs.
+              notebook.cells = notebook.cells.map(function(cell) {
+                cell.outputs = [];
+                return cell;
+              });
+            }
+            const content = JSON.stringify(notebook, null, 2);
             const url = configuration.upload_it_server_url;
             const formdata = new FormData();
-            const content = JSON.stringify(notebook.toJSON(), null, 2);
             const blob = new Blob([content], { type: "application/x-ipynb+json"});
             formdata.set("notebook", blob);
             window.console.log("Uploading ", notebook.notebook_path, " to ", url, formdata);
