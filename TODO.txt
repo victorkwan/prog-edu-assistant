@@ -2,9 +2,11 @@
 
 * use Origin value in CORS responses
 * drop outputs when uploading the notebook
-> hash and salt user id
-> store student hash into notebook metadata and report
-> detect and report time out in %%inlinetest
+* hash and salt user id
+* store student hash into notebook metadata and report
+> detect more errors in %%inlinetest
+  > detect and report time out in %%inlinetest
+  > SyntaxError: unexpected character after line continuation character\n[I][
 > include source code in the automatic reports by %%inlinetest
 > syntactic tests for dataframe 2
 > %%inlinetest for FP_OOP
