@@ -5,12 +5,15 @@
 * hash and salt user id
 * store student hash into notebook metadata and report
 > detect more errors in %%inlinetest
-  > detect and report time out in %%inlinetest
+  > detect and report nsjail time out in %%inlinetest
   > SyntaxError: unexpected character after line continuation character\n[I][
 > include source code in the automatic reports by %%inlinetest
+  > use github.com/sourcegraph/syntaxhighlighting
 > syntactic tests for dataframe 2
 > %%inlinetest for FP_OOP
 > fix 'x' in globals() in %%inlinetest when run for %%submission.
+  ? suggest using locals() instead and couple that with inline execution of a
+  submission together with the inline test?
 
 
 * save the context separately from the inlinetest
